@@ -8,9 +8,15 @@ from config import (
     TIMEZONE,
     WEATHER_VARIABLES,
 )
+from utils import (
+    load_stations,
+    create_station_folder,
+    print_header,
+    print_summary,
+)
 
 # Read station list
-stations = pd.read_csv(STATIONS_FILE)
+stations = load_stations()
 
 downloaded = 0
 skipped = 0
@@ -25,12 +31,12 @@ for _, row in stations.iterrows():
     lat = row["latitude"]
     lon = row["longitude"]
     
-    print("\n" + "=" * 50)
-    print(f"Station : {station}")
-    print("=" * 50)
+    print_header(station)
 
-    station_folder = WEATHER_DIR / station
-    station_folder.mkdir(parents=True, exist_ok=True)
+    station_folder = create_station_folder(
+        WEATHER_DIR,
+        station
+    )
 
     for year in range(START_YEAR, END_YEAR + 1):
         
@@ -95,6 +101,8 @@ for _, row in stations.iterrows():
             
             print(f"✅ Saved: {output_file}")
 
-print(f"Downloaded  : {downloaded}")
-print(f"Skipped     : {skipped}")
-print(f"Failed      : {failed}")
+print_summary(
+    downloaded,
+    skipped,
+    failed
+)
