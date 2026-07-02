@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 from pathlib import Path
 
 # ----------------------------
@@ -16,7 +20,7 @@ AIR_QUALITY_DIR = RAW_DIR / "air_quality"
 
 METADATA_DIR = DATA_DIR / "metadata"
 
-STATIONS_FILE = METADATA_DIR / "stations.csv"
+STATIONS_FILE = METADATA_DIR / "stations_metadata.csv"
 
 # ----------------------------
 # Weather Configuration
@@ -35,3 +39,21 @@ WEATHER_VARIABLES = [
     "wind_speed_10m",
     "wind_direction_10m",
 ]
+
+# -----------------------------
+# OpenAQ Configuration
+# -----------------------------
+
+OPENAQ_BASE_URL = "https://api.openaq.org/v3"
+OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY")
+COUNTRY = "NP"
+CITY = "Kathmandu"
+
+# Study Area
+CENTER_LATITUDE = 27.7172
+CENTER_LONGITUDE = 85.3240
+SEARCH_RADIUS = 25000  # meters
+
+STATIONS_METADATA_FILE = DATA_DIR / "metadata" / "stations_metadata.csv"
+
+REQUEST_TIMEOUT = 30

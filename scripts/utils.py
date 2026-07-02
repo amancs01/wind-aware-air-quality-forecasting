@@ -40,3 +40,9 @@ def print_summary(downloaded: int, skipped: int, failed: int):
     print(f"Downloaded : {downloaded}")
     print(f"Skipped    : {skipped}")
     print(f"Failed     : {failed}")
+
+def get_headers(api_key):
+    return {
+        "X-API-Key": api_key,
+        "Accept": "application/json"
+    }
