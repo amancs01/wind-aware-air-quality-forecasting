@@ -11,7 +11,7 @@ YEARS = [
 ]
 
 # Read station list
-stations = pd.read_csv("stations.csv")
+stations = pd.read_csv("../data/metadata/stations.csv")
 
 # Create output folder
 os.makedirs("../data/raw/weather", exist_ok=True)
