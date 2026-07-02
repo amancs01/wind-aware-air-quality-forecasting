@@ -2,6 +2,35 @@
 
 This document describes the overall architecture of the project.
 
-## Status
+This answers: 
+  How is the entire project organized?
 
-🚧 Under development.
+Data Collection
+
+↓
+
+Validation
+
+↓
+
+Merge
+
+↓
+
+Preprocessing
+
+↓
+
+Feature Engineering
+
+↓
+
+Model Training
+
+↓
+
+Evaluation
+
+↓
+
+Dashboard
