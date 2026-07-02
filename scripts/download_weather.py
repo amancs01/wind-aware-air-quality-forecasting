@@ -1,20 +1,23 @@
-import os
 import requests
 import pandas as pd
-
-YEARS = [
-    2021,
-    2022,
-    2023,
-    2024,
-    2025
-]
+from config import (
+    STATIONS_FILE,
+    WEATHER_DIR,
+    START_YEAR,
+    END_YEAR,
+    TIMEZONE,
+    WEATHER_VARIABLES,
+)
 
 # Read station list
-stations = pd.read_csv("../data/metadata/stations.csv")
+stations = pd.read_csv(STATIONS_FILE)
+
+downloaded = 0
+skipped = 0
+failed = 0
 
 # Create output folder
-os.makedirs("../data/raw/weather", exist_ok=True)
+WEATHER_DIR.mkdir(parents=True, exist_ok=True)
 
 for _, row in stations.iterrows():
 
@@ -22,25 +25,34 @@ for _, row in stations.iterrows():
     lat = row["latitude"]
     lon = row["longitude"]
     
-    for year in YEARS:
-        print(f"Downloading weather for {station}...")
+    print("\n" + "=" * 50)
+    print(f"Station : {station}")
+    print("=" * 50)
+
+    station_folder = WEATHER_DIR / station
+    station_folder.mkdir(parents=True, exist_ok=True)
+
+    for year in range(START_YEAR, END_YEAR + 1):
         
         params = {
             "latitude": lat,
             "longitude": lon,
             "start_date": f"{year}-01-01",
             "end_date": f"{year}-12-31",
-            "hourly": ",".join([
-                "temperature_2m",
-                "relative_humidity_2m",
-                "dew_point_2m",
-                "surface_pressure",
-                "wind_speed_10m",
-                "wind_direction_10m"
-            ]),
-            "timezone": "Asia/Kathmandu"
+            "hourly": ",".join(WEATHER_VARIABLES),
+            "timezone": TIMEZONE
         }
+
+        output_file = station_folder / f"{station}_{year}.csv"
+
+        if output_file.exists():
+            print(f"✓ {year} already exists")
+            skipped += 1
+            continue
+
+        print(f"⬇ Downloading {year}...")
         
+
         try:
 
             response = requests.get(
@@ -51,9 +63,14 @@ for _, row in stations.iterrows():
 
         except Exception as e:
 
-            print(e)
+            print(f"❌ Error downloading {station} {year}: {e}")
+            failed += 1
             continue
         
+        if response.status_code != 200:
+            failed += 1
+            print(f"❌ Failed ({response.status_code})")
+            continue
 
         if response.status_code == 200:
 
@@ -72,17 +89,12 @@ for _, row in stations.iterrows():
             df["station"] = station
             df["latitude"] = lat
             df["longitude"] = lon
-
-            station_folder = f"../data/raw/weather/{station}"
-            os.makedirs(station_folder, exist_ok=True)
-
-            output_file = (
-                f"{station_folder}/"
-                f"{station}_{year}.csv"
-            )
+            
             df.to_csv(output_file, index=False)
-
+            downloaded += 1
+            
             print(f"✅ Saved: {output_file}")
 
-        else:
-            print(f"❌ Failed for {station}: {response.status_code}")
+print(f"Downloaded  : {downloaded}")
+print(f"Skipped     : {skipped}")
+print(f"Failed      : {failed}")
