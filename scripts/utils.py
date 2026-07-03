@@ -46,3 +46,34 @@ def get_headers(api_key):
         "X-API-Key": api_key,
         "Accept": "application/json"
     }
+
+def ensure_directory(path):
+    """Create directory if it doesn't exist."""
+    Path(path).mkdir(parents=True, exist_ok=True)
+
+
+def file_exists(path):
+    """Check if a file already exists."""
+    return Path(path).exists()
+
+
+def save_dataframe(df: pd.DataFrame, output_path):
+    """Save dataframe as CSV."""
+    output_path = Path(output_path)
+    ensure_directory(output_path.parent)
+    df.to_csv(output_path, index=False)
+
+import re
+
+def sanitize_filename(name: str) -> str:
+    """
+    Convert a string into a filesystem-safe name.
+    """
+
+    # Replace invalid Windows filename characters
+    name = re.sub(r'[<>:"/\\|?*]', "_", name)
+
+    # Replace multiple spaces with one
+    name = re.sub(r"\s+", " ", name)
+
+    return name.strip()
