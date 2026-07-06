@@ -27,7 +27,7 @@ STATIONS_FILE = METADATA_DIR / "stations_metadata.csv"
 # ----------------------------
 
 START_YEAR = 2021
-END_YEAR = 2025
+END_YEAR = 2026
 
 TIMEZONE = "Asia/Kathmandu"
 
