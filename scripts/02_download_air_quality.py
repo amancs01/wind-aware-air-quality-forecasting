@@ -1,9 +1,6 @@
-import requests
 import pandas as pd
 
-from api import(
-    fetch_all_measurements
-)
+from api import fetch_all_measurements
 from config import (
     STATIONS_METADATA_FILE,
     START_YEAR,
@@ -13,111 +10,119 @@ from config import (
     REQUEST_TIMEOUT,
 )
 
+from logger import logger
+
 from utils import (
+    create_station_folder,
     get_headers,
-    ensure_directory,
-    file_exists,
-    save_dataframe,
+    sanitize_filename,
 )
 
-stations = pd.read_csv(STATIONS_METADATA_FILE)
+from downloaders.base_downloader import BaseDownloader
 
-print(f"Found {len(stations)} stations.")
 
-downloaded = 0
-skipped = 0
-failed = 0
+class AirQualityDownloader(BaseDownloader):
 
-from pathlib import Path
-AIR_QUALITY_DIR = Path("../data/raw/air_quality")
-ensure_directory(AIR_QUALITY_DIR)
+    def __init__(self):
+        super().__init__("../data/raw/air_quality")
 
-""""
-for _, row in stations.iterrows():
+    def run(self):
 
-    from utils import sanitize_filename
-    station = row["station"]
-    safe_station = sanitize_filename(station)
+        self.ensure_output_directory()
 
-    pm25_sensor = row["pm25_sensor_id"]
-    pm1_sensor = row["pm1_sensor_id"]
+        stations = pd.read_csv(STATIONS_METADATA_FILE)
 
-    print(f"\nStation: {safe_station}")
+        logger.info(f"Found {len(stations)} stations.")
 
-    station_folder = AIR_QUALITY_DIR / safe_station
+        headers = get_headers(OPENAQ_API_KEY)
 
-    ensure_directory(station_folder)
+        for _, row in stations.iterrows():
 
-    for year in range(START_YEAR, END_YEAR + 1):
+            station = row["station"]
+            safe_station = sanitize_filename(station)
 
-        output_file = station_folder / f"{safe_station}_{year}.csv"
+            sensor_id = row["pm25_sensor_id"]
 
-        print(output_file)
-"""
-station = "Embassy Kathmandu"
-sensor_id = 7710      # use the value from stations_metadata.csv
+            if pd.isna(sensor_id):
+                self.record_failure(f"{station}: Missing PM2.5 sensor")
+                continue
 
-year = 2023
+            logger.info("=" * 50)
+            logger.info(f"Station: {station}")
+            logger.info("=" * 50)
 
-url = f"{OPENAQ_BASE_URL}/sensors/{int(sensor_id)}/measurements"
+            station_folder = create_station_folder(
+                self.output_dir,
+                station,
+            )
 
-params = {
-    "datetime_from": f"{year}-01-01T00:00:00Z",
-    "datetime_to": f"{year}-12-31T23:59:59Z",
-    "limit": 1000,
-}
+            for year in range(START_YEAR, END_YEAR + 1):
 
-response = requests.get(
-    url,
-    headers=get_headers(OPENAQ_API_KEY),
-    params=params,
-    timeout=REQUEST_TIMEOUT,
-)
+                output_file = station_folder / f"{safe_station}_{year}.csv"
 
-print(response.status_code)
+                if self.file_exists(output_file):
+                    self.skip_file(output_file)
+                    continue
 
-if response.status_code != 200:
-    print(response.text)
-    exit()
+                logger.info(f"⬇ Downloading {year}...")
 
-results = fetch_all_measurements(
-    sensor_id=sensor_id,
-    year=2023,
-    base_url=OPENAQ_BASE_URL,
-    headers=get_headers(OPENAQ_API_KEY),
-    timeout=REQUEST_TIMEOUT,
-)
-print("First timestamp:")
-print(results[0]["period"]["datetimeFrom"]["local"])
+                try:
 
-print("Last timestamp:")
-print(results[-1]["period"]["datetimeFrom"]["local"])
+                    results = fetch_all_measurements(
+                        sensor_id=int(sensor_id),
+                        year=year,
+                        base_url=OPENAQ_BASE_URL,
+                        headers=headers,
+                        timeout=REQUEST_TIMEOUT,
+                    )
 
-print("Total records:")
-print(len(results))
-print(results[0])
-rows = []
+                except Exception as e:
 
-for measurement in results:
+                    self.record_failure(
+                        f"{station} ({year}) : {e}"
+                    )
 
-    rows.append({
+                    continue
 
-        "timestamp": measurement["period"]["datetimeFrom"]["local"],
+                if not results:
 
-        "pm2_5": measurement["value"]
+                    self.record_failure(
+                        f"{station} ({year}) : No data returned"
+                    )
 
-    })
+                    continue
 
-df = pd.DataFrame(rows)
+                rows = []
 
-print(df.head())
+                for measurement in results:
 
-print(df.shape)
+                    rows.append({
+                        "timestamp": measurement["period"]["datetimeFrom"]["local"],
+                        "pm2_5": measurement["value"],
+                    })
 
-meta = response.json()["meta"]
-print(meta)
-duplicates = df["timestamp"].duplicated().sum()
-print(f"Duplicate timestamps: {duplicates}")
+                df = pd.DataFrame(rows)
 
-print(response.links)
-print(len(results))
+                if df.empty:
+
+                    self.record_failure(
+                        f"{station} ({year}) : Empty dataframe"
+                    )
+
+                    continue
+
+                self.save_dataframe(
+                    df,
+                    output_file,
+                )
+
+                logger.info(f"✓ Saved {station} ({year})")
+
+
+if __name__ == "__main__":
+
+    downloader = AirQualityDownloader()
+
+    downloader.run()
+
+    downloader.summary()
