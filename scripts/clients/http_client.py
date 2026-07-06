@@ -8,6 +8,7 @@ def get_json(
     timeout=30,
     max_retries=3,
 ):
+
     for attempt in range(max_retries):
         try:
             response = requests.get(
@@ -37,8 +38,8 @@ def get_json(
 
             time.sleep(2 ** attempt)
         
-        raise Exception(
-            f"Failed after {max_retries} attemts."
-        )
+    raise Exception(
+        f"Failed after {max_retries} attemts."
+    )
 
         
