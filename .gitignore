@@ -36,6 +36,9 @@ data/raw/
 # Processed datasets (optional)
 data/processed/
 
+#stations datasets
+data/metadata/stations_metadata.csv
+
 # Model outputs
 models/checkpoints/
 models/weights/
