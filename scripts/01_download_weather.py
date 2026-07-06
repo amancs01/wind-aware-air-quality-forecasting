@@ -58,7 +58,6 @@ class WeatherDownloader(BaseDownloader):
                 output_file = station_folder / f"{safe_station}_{year}.csv"
 
                 if self.file_exists(output_file):
-                    print(f"✓ {year} already exists")
                     self.skip_file(output_file)
                     continue
 
