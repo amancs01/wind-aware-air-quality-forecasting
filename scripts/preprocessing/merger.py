@@ -49,15 +49,20 @@ class DataMerger:
         weather_df = self.load_station_data(weather_folder)
 
         air_df = self.load_station_data(air_folder)
+        weather_df["timestamp"] = pd.to_datetime(weather_df["timestamp"])
+        air_df["timestamp"] = pd.to_datetime(air_df["timestamp"])
+        
+        # Remove timezone from air quality timestamps
+        air_df["timestamp"] = (air_df["timestamp"].dt.tz_localize(None))
+
+        # Round air-quality measurements to the nearest hour
+        air_df["timestamp"] = (air_df["timestamp"].dt.floor("h"))
+
         weather_df["timestamp"] = (
-            pd.to_datetime(weather_df["timestamp"])
-            .dt.tz_localize("Asia/Kathmandu")
+            weather_df["timestamp"]
+                .dt.tz_localize(None)
         )
 
-        air_df["timestamp"] = (
-            pd.to_datetime(weather_df["timestamp"])
-            .dt.tz_convert("Asia/Kathmandu")
-        )
         if weather_df.empty:
 
             logger.warning(
