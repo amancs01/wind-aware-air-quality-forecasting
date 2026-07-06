@@ -49,6 +49,15 @@ class DataMerger:
         weather_df = self.load_station_data(weather_folder)
 
         air_df = self.load_station_data(air_folder)
+        weather_df["timestamp"] = (
+            pd.to_datetime(weather_df["timestamp"])
+            .dt.tz_localize("Asia/Kathmandu")
+        )
+
+        air_df["timestamp"] = (
+            pd.to_datetime(weather_df["timestamp"])
+            .dt.tz_convert("Asia/Kathmandu")
+        )
         if weather_df.empty:
 
             logger.warning(
@@ -86,9 +95,7 @@ class DataMerger:
         )
 
         logger.info(f"Saved {output_file}")
-        print(len(weather_df))
-        print(len(merged_df))
-
+     
     def run(self):
 
         coverage = pd.read_csv(
