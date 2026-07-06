@@ -1,7 +1,6 @@
 import calendar
 import time
-import requests
-
+from clients.http_client import get_json
 
 def fetch_all_measurements(
     sensor_id,
@@ -11,6 +10,7 @@ def fetch_all_measurements(
     timeout,
 ):
     all_results = []
+    url=f"{base_url}/sensors/{int(sensor_id)}/measurements"
 
     # Loop through all 12 months
     for month in range(1, 13):
@@ -28,42 +28,14 @@ def fetch_all_measurements(
 
         success = False
 
-        # Retry loop
-        for attempt in range(3):
 
-            try:
+        data = get_json(
+            url=url,
+            headers=headers,
+            params=params,
+            timeout=timeout,
+        )
 
-                response = requests.get(
-                    f"{base_url}/sensors/{int(sensor_id)}/measurements",
-                    headers=headers,
-                    params=params,
-                    timeout=timeout,
-                )
-
-                if response.status_code == 200:
-                    success = True
-                    break
-
-                print(
-                    f"HTTP {response.status_code} "
-                    f"(Month {month}, Attempt {attempt + 1})"
-                )
-
-            except requests.exceptions.RequestException as e:
-
-                print(
-                    f"Network Error "
-                    f"(Month {month}, Attempt {attempt + 1})"
-                )
-                print(e)
-
-            time.sleep(2 ** attempt)
-
-        if not success:
-            print(f"Skipping Month {month}")
-            continue
-
-        data = response.json()
         results = data["results"]
         if results:
             print(
