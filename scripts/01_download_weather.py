@@ -69,7 +69,11 @@ class WeatherDownloader(BaseDownloader):
                         params=params,
                         timeout=30,
                     )
-                
+                    if "hourly" not in data or data["hourly"] is None:
+                        self.record_failure(
+                            f"{station} ({year}): No hourly data returned"
+                        )
+                        continue
                 except Exception as e:
 
                     self.record_failure(
