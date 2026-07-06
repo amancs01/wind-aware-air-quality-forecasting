@@ -30,6 +30,12 @@ PROFILING_DIR = REPORTS_DIR / "profiling"
 
 FIGURES_DIR = REPORTS_DIR / "figures"
 
+PROCESSED_DIR = DATA_DIR / "processed"
+
+MERGED_DIR = PROCESSED_DIR / "merged"
+
+FINAL_DIR = PROCESSED_DIR / "final"
+
 # ----------------------------
 # Weather Configuration
 # ----------------------------
