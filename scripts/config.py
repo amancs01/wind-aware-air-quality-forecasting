@@ -22,6 +22,14 @@ METADATA_DIR = DATA_DIR / "metadata"
 
 STATIONS_FILE = METADATA_DIR / "stations_metadata.csv"
 
+REPORTS_DIR = PROJECT_ROOT / "reports"
+
+VALIDATION_DIR = REPORTS_DIR / "validation"
+
+PROFILING_DIR = REPORTS_DIR / "profiling"
+
+FIGURES_DIR = REPORTS_DIR / "figures"
+
 # ----------------------------
 # Weather Configuration
 # ----------------------------
