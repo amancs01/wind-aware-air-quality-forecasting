@@ -2,6 +2,7 @@ import pandas as pd
 from downloaders.base_downloader import BaseDownloader
 from clients.http_client import get_json
 from logger import logger
+from datetime import datetime
 from config import (
     STATIONS_FILE,
     WEATHER_DIR,
@@ -11,11 +12,8 @@ from config import (
     WEATHER_VARIABLES,
 )
 from utils import (
-    load_stations,
     sanitize_filename,
     create_station_folder,
-    print_header,
-    print_summary,
 )
 
 class WeatherDownloader(BaseDownloader):
@@ -26,28 +24,31 @@ class WeatherDownloader(BaseDownloader):
     def run(self):
         self.ensure_output_directory()
         stations = pd.read_csv(STATIONS_FILE)
-        for _, row in stations.iterrows():
-
+        
+        for _, row in stations.iterrows(): 
             station = row["station"]
             lat = row["latitude"]
             lon = row["longitude"]
-            
-            print_header(station)
-
             station_folder = create_station_folder(
-                WEATHER_DIR,
+                self.output_dir,
                 station
             )
+
             logger.info("=" * 50)
             logger.info(f"Station: {station}")
             logger.info("=" * 50)
             for year in range(START_YEAR, END_YEAR + 1):
-                
+                current_year = datetime.now().year
+
+                if year == current_year:
+                    end_date = datetime.now().strftime("%Y-%m-%d")
+                else:
+                    end_date = f"{year}-12-31"
                 params = {
                     "latitude": lat,
                     "longitude": lon,
                     "start_date": f"{year}-01-01",
-                    "end_date": f"{year}-12-31",
+                    "end_date": end_date,
                     "hourly": ",".join(WEATHER_VARIABLES),
                     "timezone": TIMEZONE
                 }
