@@ -1,41 +1,26 @@
-Missing timestamps
-
+Raw Data
 ↓
-
-Merge weather + AQ
-
+Validation
 ↓
-
-Interpolation
-
+Profiling
 ↓
-
-Outlier removal
-
+Merge
 ↓
-
-Normalization
-
+Timestamp Alignment
 ↓
+Trim Leading Missing Labels
+↓
+Feature Engineering
+    - Time Features
+    - Lag Features
+    - Rolling Features
+↓
+Scaling
+↓
+Train/Test Split
 
-Sliding window generation
-## Incoming preprocessing
+Open-Meteo provides hourly observations.
 
-Weather
+OpenAQ measurements are timestamped approximately every hour with minute offsets.
 
-- Timestamp normalization
-- Missing value detection
-
-Air Quality
-
-- Remove invalid measurements
-- Handle missing PM2.5
-- Merge monthly downloads
-- Yearly CSV generation
-- Station consistency checks
-
-Combined
-
-- Weather/AQ merge
-- Time alignment
-- Missing timestamp filling
+During preprocessing, timestamps are converted to datetime objects, normalized, and aligned before merging.

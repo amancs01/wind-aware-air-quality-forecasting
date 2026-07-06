@@ -31,3 +31,27 @@
 - Fixed raw datasets being tracked by Git.
 - Fixed Windows path problems caused by invalid station names.
 - Fixed downloader repeatedly downloading existing weather files.
+
+## Day X
+
+### Refactoring
+- Introduced BaseDownloader abstraction.
+- Refactored Weather Downloader.
+- Refactored Air Quality Downloader.
+- Centralized utilities into utils.py.
+- Added reusable HTTP client.
+
+### Data Processing
+- Added dataset validation.
+- Added dataset profiling.
+- Added merged dataset generation.
+- Fixed timestamp alignment between OpenAQ and Open-Meteo.
+- Added trimming of leading rows without PM2.5 measurements.
+
+### Feature Engineering
+- Started feature engineering pipeline.
+- Added temporal features (hour, day, month, weekday).
+
+### Other
+- Added support for downloading current-year (2026) weather data.
+- Improved filename sanitization for Windows.

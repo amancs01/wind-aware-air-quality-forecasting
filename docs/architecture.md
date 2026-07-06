@@ -35,45 +35,24 @@ Evaluation
 
 Dashboard
 
-# Current Architecture
+## Current Data Pipeline
 
-Project Layers
+The project now follows a multi-stage data engineering pipeline:
 
-User Script
-    ↓
-API Layer
-    ↓
-Utilities
-    ↓
-Configuration
-    ↓
-Filesystem
+Raw Data
+↓
+Validation
+↓
+Profiling
+↓
+Merge Weather + Air Quality
+↓
+Timestamp Alignment
+↓
+Trim Leading Missing PM2.5 Records
+↓
+Feature Engineering
+↓
+Model Training
 
-Current Components
-
-config.py
-Central configuration for API endpoints, paths and constants.
-
-utils.py
-Shared filesystem utilities.
-
-api.py
-OpenAQ API communication.
-
-download_weather.py
-Weather ingestion pipeline.
-
-download_air_quality.py
-Air Quality ingestion pipeline.
-
-## Planned Refactor
-
-Upcoming architecture:
-
-downloaders
-        ↓
-API Modules
-        ↓
-Reusable HTTP Client
-        ↓
-requests
+Each stage writes its output to a separate directory, allowing intermediate datasets to be inspected and reproduced without modifying previous stages.

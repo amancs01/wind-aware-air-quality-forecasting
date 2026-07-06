@@ -1,35 +1,33 @@
-Raw data
+## Completed
 
-↓
+✓ Data collection
 
-Graph Construction
+✓ Data validation
 
-↓
+✓ Dataset profiling
 
-Spatial Embedding (GAT)
+✓ Timestamp normalization
 
-↓
+✓ Dataset merging
 
-Temporal Learning (GRU)
+✓ Dataset trimming
 
-↓
+---
 
-Forecast PM2.5
+## In Progress
 
-## Data Pipeline Progress
+Feature engineering
 
-Current stage
+- Temporal features
+- Lag features
+- Rolling statistics
 
-Data Collection
+---
 
-Completed
+## Upcoming
 
-- Weather ingestion
-- OpenAQ exploration
-
-Remaining
-
-- Complete Air Quality downloader
-- Merge weather and air quality
-- Feature engineering
-- Model training
+- Train/Test split
+- Baseline models
+- LSTM
+- XGBoost
+- Transformer experiments

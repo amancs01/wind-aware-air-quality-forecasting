@@ -1,7 +1,5 @@
 # Development Log
 
-## 2026-07-02
-
 ### Completed
 
 - Created repository
@@ -9,12 +7,6 @@
 - Weather downloader
 - Resumable downloads
 - Shared utilities
-# Development Log
-
-## Day 1
-
-Major achievements
-
 - Completed reusable utility module.
 - Refactored weather downloader.
 - Prevented unnecessary weather downloads.
@@ -27,6 +19,42 @@ Major achievements
 - Investigated pagination behaviour.
 - Verified timestamps contain no duplicates.
 - Planned reusable HTTP client architecture.
+
+## Validation
+
+Created automated validation pipeline.
+
+Checks include:
+- Missing values
+- Duplicate timestamps
+- File sizes
+- Dataset summaries
+
+---
+
+## Profiling
+
+Implemented dataset profiling.
+
+Generated:
+- Weather summary
+- Air quality summary
+- Station coverage
+- Merged dataset analysis
+
+---
+
+## Preprocessing
+
+Implemented preprocessing pipeline.
+
+Modules:
+- merger.py
+- analyzer.py
+- trimmer.py
+- feature_engineer.py
+
+Resolved timestamp mismatch between Open-Meteo and OpenAQ by converting timestamps to compatible datetime representations before merging.
 
 Engineering lessons
 
