@@ -7,6 +7,7 @@ from logger import logger
 from config import (
     MERGED_DIR,
     FINAL_DIR,
+    TRIMMED_DIR
 )
 
 
@@ -14,7 +15,7 @@ class DataTrimmer:
 
     def __init__(self):
 
-        FINAL_DIR.mkdir(
+        TRIMMED_DIR.mkdir(
             parents=True,
             exist_ok=True,
         )
@@ -59,7 +60,7 @@ class DataTrimmer:
 
                 continue
 
-            output = FINAL_DIR / csv_file.name
+            output = TRIMMED_DIR / csv_file.name
 
             trimmed.to_csv(
                 output,

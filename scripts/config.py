@@ -36,6 +36,12 @@ MERGED_DIR = PROCESSED_DIR / "merged"
 
 FINAL_DIR = PROCESSED_DIR / "final"
 
+TRIMMED_DIR = PROCESSED_DIR / "trimmed"
+
+FEATURED_DIR = PROCESSED_DIR / "featured"
+
+PREPARED_DIR = PROCESSED_DIR/ "prepared"
+
 # ----------------------------
 # Weather Configuration
 # ----------------------------
