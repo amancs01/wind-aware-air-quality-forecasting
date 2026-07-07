@@ -1,15 +1,9 @@
 # Changelog
 
-## v0.1.0
-
 - Initial project structure
 - Added weather downloader
 - Added configuration system
 - Added shared utilities
-
----
-
-## Version 0.2.0 (Current Development)
 
 ### Added
 - Weather downloader now skips already downloaded yearly datasets.
@@ -32,8 +26,6 @@
 - Fixed Windows path problems caused by invalid station names.
 - Fixed downloader repeatedly downloading existing weather files.
 
-## Day X
-
 ### Refactoring
 - Introduced BaseDownloader abstraction.
 - Refactored Weather Downloader.
@@ -55,3 +47,22 @@
 ### Other
 - Added support for downloading current-year (2026) weather data.
 - Improved filename sanitization for Windows.
+
+## Data Engineering Pipeline Completed
+
+### Added
+- Merge pipeline
+- Data trimming
+- Feature engineering
+- Dataset preparation
+
+### Feature Engineering
+- Time features
+- Lag features
+- Rolling statistics
+- Wind vector features
+- Cyclical time encoding
+
+### Improvements
+- Automatic removal of incomplete rows
+- ML-ready datasets generated
