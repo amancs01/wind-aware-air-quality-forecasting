@@ -39,9 +39,16 @@ data/processed/
 #stations datasets
 data/metadata/stations_metadata.csv
 
+#report datasets
+reports/validation/weather_validation.csv
+
+reports
+
 # Model outputs
 models/checkpoints/
 models/weights/
 
 # Logs
 logs/
+
+export.py
