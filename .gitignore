@@ -52,3 +52,5 @@ models/weights/
 logs/
 
 export.py
+
+results
