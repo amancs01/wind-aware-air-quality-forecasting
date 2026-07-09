@@ -42,6 +42,41 @@ FEATURED_DIR = PROCESSED_DIR / "featured"
 
 PREPARED_DIR = PROCESSED_DIR/ "prepared"
 
+SPLIT_DIR = PROCESSED_DIR / "split"
+
+TRAIN_DIR = SPLIT_DIR / "train"
+
+ML_VALIDATION_DIR = SPLIT_DIR / "validation"
+
+TEST_DIR = SPLIT_DIR / "test"
+
+MODELS_DIR = PROJECT_ROOT / "models"
+
+RESULTS_DIR = PROJECT_ROOT / "results"
+
+PERSISTENCE_RESULTS_DIR = RESULTS_DIR / "persistence"
+
+LINEAR_RESULTS_DIR = RESULTS_DIR / "linear_regression"
+
+RANDOM_FOREST_RESULTS_DIR = RESULTS_DIR / "random_forest"
+
+XGBOOST_RESULTS_DIR = RESULTS_DIR / "xgboost"
+
+LSTM_RESULTS_DIR = RESULTS_DIR / "lstm"
+
+TRANSFORMER_RESULTS_DIR = RESULTS_DIR / "transformer"
+
+for directory in [
+    RESULTS_DIR,
+    PERSISTENCE_RESULTS_DIR,
+    LINEAR_RESULTS_DIR,
+    RANDOM_FOREST_RESULTS_DIR,
+    XGBOOST_RESULTS_DIR,
+    LSTM_RESULTS_DIR,
+    TRANSFORMER_RESULTS_DIR,
+]:
+    directory.mkdir(parents=True, exist_ok=True)
+
 # ----------------------------
 # Weather Configuration
 # ----------------------------
