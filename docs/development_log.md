@@ -86,3 +86,9 @@ Engineered Features:
 - Cyclical Time Features
 
 Prepared datasets are now ready for machine learning.
+
+Machine Learning:
+Refactored ML architecture with BaseModel.
+Implemented persistence baseline.
+Learned inheritance and method overriding.
+Verified preprocessing pipeline before starting ML.

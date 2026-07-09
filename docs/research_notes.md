@@ -66,3 +66,41 @@ Coverage
 Embassy Kathmandu remains one of the richest stations in the dataset.
 
 Most GD Labs stations contain approximately 8–10 months of PM2.5 data, while weather observations cover approximately five years.
+
+### Forecasting Target
+
+The prediction target was defined as the PM2.5 concentration one hour ahead using:
+
+`target_pm2_5 = pm2_5.shift(-1)`
+
+This converts the task from estimating the current air quality to forecasting future air quality, which better reflects real-world prediction scenarios.
+
+### Baseline Model
+
+A persistence baseline was implemented before training machine learning models.
+
+Prediction rule:
+
+`PM2.5(t + 1) = PM2.5(t)`
+
+The persistence model provides a reference point that every subsequent machine learning model must outperform.
+
+### Evaluation Metrics
+
+The following regression metrics were selected:
+
+* Mean Absolute Error (MAE)
+* Root Mean Squared Error (RMSE)
+* Coefficient of Determination (R²)
+
+These metrics will be used consistently for all forecasting models to enable fair comparison.
+
+### Model Architecture
+
+A reusable `BaseModel` class was introduced to standardize dataset loading, evaluation, result storage, and reporting.
+
+Future models such as Linear Regression, Random Forest, XGBoost, LSTM, and Transformer will inherit from this base class while implementing their own training and prediction logic.
+
+### Data Quality Decisions
+
+Stations without sufficient PM2.5 observations were excluded from model training after preprocessing because they could not provide valid prediction targets.

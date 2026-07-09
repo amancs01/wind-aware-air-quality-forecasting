@@ -12,22 +12,21 @@
 
 ✓ Dataset trimming
 
----
+✔ Data collection completed
 
-## In Progress
+✔ Data preprocessing completed
 
-Feature engineering
+✔ Feature engineering completed
 
-- Temporal features
-- Lag features
-- Rolling statistics
+✔ Dataset split completed
 
----
+✔ Persistence baseline implemented
 
-## Upcoming
+✔ BaseModel for reusable ML models implemented
 
-- Train/Test split
-- Baseline models
-- LSTM
+Next:
+- Linear Regression
+- Random Forest
 - XGBoost
-- Transformer experiments
+- LSTM
+- Transformer

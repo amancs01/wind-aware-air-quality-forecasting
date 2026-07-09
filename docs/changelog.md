@@ -66,3 +66,26 @@
 ### Improvements
 - Automatic removal of incomplete rows
 - ML-ready datasets generated
+
+## Machine Learning Pipeline Milestone
+
+### Added
+
+* Implemented the persistence baseline forecasting model for PM2.5 prediction.
+* Created a reusable `BaseModel` class to reduce duplicate code across machine learning models.
+* Added common evaluation utilities for MAE, RMSE, and R² metrics.
+* Organized experiment outputs into model-specific results directories.
+* Implemented automatic metrics export for the persistence baseline.
+
+### Changed
+
+* Refactored the persistence model to inherit from `BaseModel`.
+* Moved shared functionality such as dataset loading, evaluation, metrics saving, and summary reporting into the base class.
+* Updated the dataset preparation pipeline to generate the `target_pm2_5` column for one-hour-ahead forecasting.
+* Improved handling of empty datasets by skipping stations with insufficient PM2.5 observations.
+
+### Verified
+
+* Verified train, validation, and test dataset generation.
+* Verified persistence baseline execution across all usable stations.
+* Confirmed evaluation metrics are successfully generated for each station.
