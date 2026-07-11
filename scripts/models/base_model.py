@@ -6,7 +6,8 @@ from sklearn.metrics import(
     r2_score,
 )
 from config import(
-    TEST_DIR
+    TEST_DIR,
+    FEATURE_EXCLUDE_COLUMNS
 )
 
 class BaseModel:
@@ -27,13 +28,7 @@ class BaseModel:
     
     def prepare_features(self, df):
 
-        X = df.drop(
-            columns=[
-                "timestamp",
-                "target_pm2_5",
-            ]
-        )
-
+        X = df.drop(columns=FEATURE_EXCLUDE_COLUMNS)
         y = df["target_pm2_5"]
 
         return X, y
