@@ -88,7 +88,8 @@ class WeatherDownloader(BaseDownloader):
                     "dew_point": data["hourly"]["dew_point_2m"],
                     "pressure": data["hourly"]["surface_pressure"],
                     "wind_speed": data["hourly"]["wind_speed_10m"],
-                    "wind_direction": data["hourly"]["wind_direction_10m"]
+                    "wind_direction": data["hourly"]["wind_direction_10m"],
+                    "precipitation" : data["hourly"]["precipitation"]
                 })
 
                 df["station"] = station
