@@ -66,6 +66,12 @@ LSTM_RESULTS_DIR = RESULTS_DIR / "lstm"
 
 TRANSFORMER_RESULTS_DIR = RESULTS_DIR / "transformer"
 
+FEATURE_EXCLUDE_COLUMNS = [
+    "timestamp",
+    "station",
+    "target_pm2_5",
+]
+
 for directory in [
     RESULTS_DIR,
     PERSISTENCE_RESULTS_DIR,
@@ -93,6 +99,7 @@ WEATHER_VARIABLES = [
     "surface_pressure",
     "wind_speed_10m",
     "wind_direction_10m",
+    "precipitation"
 ]
 
 # -----------------------------
