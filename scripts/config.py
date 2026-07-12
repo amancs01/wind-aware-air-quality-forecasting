@@ -66,6 +66,9 @@ LSTM_RESULTS_DIR = RESULTS_DIR / "lstm"
 
 TRANSFORMER_RESULTS_DIR = RESULTS_DIR / "transformer"
 
+FEATURE_ANALYSIS_DIR = RESULTS_DIR / "feature_analysis"
+
+
 FEATURE_EXCLUDE_COLUMNS = [
     "timestamp",
     "station",
