@@ -1,5 +1,5 @@
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from models.base_model import BaseModel
 from logger import logger
 from config import(
@@ -15,7 +15,7 @@ class LinearRegressionModel(BaseModel):
             LINEAR_RESULTS_DIR
         )
 
-        self.model = LinearRegression()
+        self.model = Ridge(alpha=10.0)
 
     def fit(self, X_train, y_train):
 
