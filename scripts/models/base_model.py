@@ -7,7 +7,7 @@ from sklearn.metrics import(
 )
 from config import(
     TEST_DIR,
-    FEATURE_EXCLUDE_COLUMNS
+    MODEL_FEATURE_COLUMNS
 )
 
 class BaseModel:
@@ -27,10 +27,9 @@ class BaseModel:
         return pd.read_csv(csv_file)
     
     def prepare_features(self, df):
-
-        X = df.drop(columns=FEATURE_EXCLUDE_COLUMNS)
+        df = df.dropna(subset=MODEL_FEATURE_COLUMNS + ["target_pm2_5"])
+        X = df[MODEL_FEATURE_COLUMNS]
         y = df["target_pm2_5"]
-
         return X, y
     
     def evaluate(self, target, prediction):

@@ -68,11 +68,22 @@ TRANSFORMER_RESULTS_DIR = RESULTS_DIR / "transformer"
 
 FEATURE_ANALYSIS_DIR = RESULTS_DIR / "feature_analysis"
 
+TIMESTAMP_VALIDATION_DIR = RESULTS_DIR / "timestamp_validation"
+
+MIN_TRAINING_ROWS = 100
 
 FEATURE_EXCLUDE_COLUMNS = [
     "timestamp",
     "station",
     "target_pm2_5",
+]
+
+MODEL_FEATURE_COLUMNS = [
+    "pm2_5", "lag_6", "lag_24",
+    "rolling_mean_6", "rolling_std_6",
+    "hour_sin", "hour_cos", "month_sin", "month_cos",
+    "wind_u", "wind_v",
+    "temperature", "humidity", "pressure", "dew_point",
 ]
 
 for directory in [
