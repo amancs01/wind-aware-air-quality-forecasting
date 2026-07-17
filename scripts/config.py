@@ -68,6 +68,37 @@ TRANSFORMER_RESULTS_DIR = RESULTS_DIR / "transformer"
 
 FEATURE_ANALYSIS_DIR = RESULTS_DIR / "feature_analysis"
 
+# added part
+# ----------------------------
+# Graph Processing
+# ----------------------------
+
+GRAPH_DIR = PROCESSED_DIR / "graph"
+GRAPH_DIR.mkdir(parents=True, exist_ok=True)
+
+STATION_MAPPING_FILE = METADATA_DIR / "station_mapping.csv"
+
+DISTANCE_MATRIX_FILE = GRAPH_DIR / "distance_matrix.csv"
+DISTANCE_EDGES_FILE = GRAPH_DIR / "distance_edges.csv"
+
+STATIC_GRAPH_FILE = GRAPH_DIR / "static_graph.csv"
+ADJACENCY_MATRIX_FILE = GRAPH_DIR / "adjacency_matrix.csv"
+
+GRAPH_SNAPSHOTS_DIR = GRAPH_DIR / "snapshots"
+GRAPH_SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# ----------------------------
+# Graph Parameters
+# ----------------------------
+
+K_NEIGHBORS = 5
+USE_KNN_GRAPH = True
+MAX_EDGE_DISTANCE_KM = None
+
+GRAPH_WINDOW_SIZE = 24
+TARGET_HORIZON = 1
+
+# added end
 
 FEATURE_EXCLUDE_COLUMNS = [
     "timestamp",
