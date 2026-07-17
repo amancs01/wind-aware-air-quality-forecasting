@@ -1,2 +1,15 @@
- 
-python-dotenv
+# Core data handling
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP / API access (OpenAQ, Open-Meteo)
+requests>=2.31.0
+
+# Environment variable management (.env)
+python-dotenv>=1.0.0
+
+# Machine learning (baseline + linear regression models)
+scikit-learn>=1.3.0
+
+# Plotting (feature correlation heatmaps, EDA figures)
+matplotlib>=3.7.0
