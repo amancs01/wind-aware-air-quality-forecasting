@@ -8,6 +8,7 @@ from config import (
     ML_VALIDATION_DIR,
     TEST_DIR,
     SPLIT_DIR,
+    MIN_TRAINING_ROWS
 )
 
 
@@ -38,6 +39,12 @@ class DatasetSplitter:
         if df.empty:
             logger.warning(
                 f"Skipping {csv_file.stem}: no data available."
+            )
+            return
+        if len(df) < MIN_TRAINING_ROWS:
+            logger.warning(
+                f"Skipping {csv_file.stem}: only {len(df)} rows "
+                f"(minimum required: {MIN_TRAINING_ROWS})."
             )
             return
         rows = len(df)
