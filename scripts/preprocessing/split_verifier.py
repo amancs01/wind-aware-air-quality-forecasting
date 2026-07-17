@@ -21,9 +21,18 @@ class SplitVerifier:
         validation = pd.read_csv(
             ML_VALIDATION_DIR / csv_name
         )
-
+        if validation.empty:
+            logger.warning(
+                f"{csv_name}: empty validation dataset."
+            )
+            return
         test = pd.read_csv(TEST_DIR / csv_name)
-
+        if test.empty:
+            logger.warning(
+                f"{csv_name}: empty test dataset."
+            )
+            return
+        
         logger.info(
             f"Missing values: "
             f"{train.isna().sum().sum()} | "
