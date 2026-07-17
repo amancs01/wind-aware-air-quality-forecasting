@@ -2,7 +2,7 @@ import pandas as pd
 from logger import logger
 from config import (
     TIMESTAMP_VALIDATION_DIR,
-    PREPARED_DIR
+    TRIMMED_DIR
 )
 
 class TimestampValidator:
@@ -142,7 +142,7 @@ class TimestampValidator:
     def run(self):
 
         csv_files = sorted(
-            PREPARED_DIR.glob("*.csv")
+            TRIMMED_DIR.glob("*.csv")
         )
 
         logger.info(
