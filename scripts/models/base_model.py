@@ -71,7 +71,7 @@ class BaseModel:
 
         results_df = pd.DataFrame(self.results)
         logger.info("=" * 50)
-        logger.info("Overall Persistence Baseline")
+        logger.info(f"Overall {self.__class__.__name__}")
         logger.info("=" * 50)
 
         logger.info(
