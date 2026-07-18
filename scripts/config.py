@@ -91,6 +91,11 @@ MODEL_FEATURE_COLUMNS = [
 for directory in [
 
     # Reports
+    DATA_DIR,
+    RAW_DIR,
+    WEATHER_DIR,
+    AIR_QUALITY_DIR,
+    METADATA_DIR,
     REPORTS_DIR,
     VALIDATION_DIR,
     PROFILING_DIR,
@@ -98,6 +103,17 @@ for directory in [
     TABLES_DIR,
 
     # Results
+    PROCESSED_DIR,
+    MERGED_DIR,
+    FINAL_DIR,
+    TRIMMED_DIR,
+    FEATURED_DIR,
+    PREPARED_DIR,
+    SPLIT_DIR,
+    TRAIN_DIR,
+    ML_VALIDATION_DIR,
+    TEST_DIR,
+    MODELS_DIR,
     RESULTS_DIR,
     PERSISTENCE_RESULTS_DIR,
     LINEAR_RESULTS_DIR,
@@ -107,7 +123,6 @@ for directory in [
     TRANSFORMER_RESULTS_DIR,
     FEATURE_ANALYSIS_DIR,
     TIMESTAMP_VALIDATION_DIR,
-
 ]:
     directory.mkdir(
         parents=True,

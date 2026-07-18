@@ -1,91 +1,78 @@
 # Changelog
 
-- Initial project structure
-- Added weather downloader
-- Added configuration system
-- Added shared utilities
+Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
+
+## Milestone: Machine Learning Pipeline
 
 ### Added
-- Weather downloader now skips already downloaded yearly datasets.
-- Added reusable utility functions in `utils.py`.
-- Introduced API abstraction through `api.py`.
-- Added OpenAQ station discovery script.
-- Added OpenAQ sensor discovery.
-- Added first Air Quality downloader prototype.
-- Added automatic retry mechanism for failed API requests.
-- Added exponential backoff for transient network failures.
+- Persistence baseline forecasting model for PM2.5 prediction.
+- Reusable `BaseModel` class to remove duplicate code across ML models.
+- Shared evaluation utilities for MAE, RMSE, and R².
+- Per-model results directories under `results/`.
+- Automatic metrics export (`metrics.csv`) for each model.
+- Linear Regression model.
 
 ### Changed
-- Weather downloader now uses `Pathlib` instead of manual path strings.
-- Weather downloader creates directories through reusable utilities.
-- Air quality downloader switched from yearly requests to monthly partitioning.
-
-### Fixed
-- Fixed `.gitignore` encoding issue caused by UTF-16 LE.
-- Fixed raw datasets being tracked by Git.
-- Fixed Windows path problems caused by invalid station names.
-- Fixed downloader repeatedly downloading existing weather files.
-
-### Refactoring
-- Introduced BaseDownloader abstraction.
-- Refactored Weather Downloader.
-- Refactored Air Quality Downloader.
-- Centralized utilities into utils.py.
-- Added reusable HTTP client.
-
-### Data Processing
-- Added dataset validation.
-- Added dataset profiling.
-- Added merged dataset generation.
-- Fixed timestamp alignment between OpenAQ and Open-Meteo.
-- Added trimming of leading rows without PM2.5 measurements.
-
-### Feature Engineering
-- Started feature engineering pipeline.
-- Added temporal features (hour, day, month, weekday).
-
-### Other
-- Added support for downloading current-year (2026) weather data.
-- Improved filename sanitization for Windows.
-
-## Data Engineering Pipeline Completed
-
-### Added
-- Merge pipeline
-- Data trimming
-- Feature engineering
-- Dataset preparation
-
-### Feature Engineering
-- Time features
-- Lag features
-- Rolling statistics
-- Wind vector features
-- Cyclical time encoding
-
-### Improvements
-- Automatic removal of incomplete rows
-- ML-ready datasets generated
-
-## Machine Learning Pipeline Milestone
-
-### Added
-
-* Implemented the persistence baseline forecasting model for PM2.5 prediction.
-* Created a reusable `BaseModel` class to reduce duplicate code across machine learning models.
-* Added common evaluation utilities for MAE, RMSE, and R² metrics.
-* Organized experiment outputs into model-specific results directories.
-* Implemented automatic metrics export for the persistence baseline.
-
-### Changed
-
-* Refactored the persistence model to inherit from `BaseModel`.
-* Moved shared functionality such as dataset loading, evaluation, metrics saving, and summary reporting into the base class.
-* Updated the dataset preparation pipeline to generate the `target_pm2_5` column for one-hour-ahead forecasting.
-* Improved handling of empty datasets by skipping stations with insufficient PM2.5 observations.
+- Persistence model refactored to inherit from `BaseModel`.
+- Dataset loading, evaluation, metrics saving, and summary reporting moved into `BaseModel`.
+- Dataset preparation updated to generate `target_pm2_5` (one-hour-ahead PM2.5) as the label.
+- Empty-dataset handling improved: stations with insufficient PM2.5 observations are now skipped rather than erroring.
 
 ### Verified
+- Train / validation / test dataset generation.
+- Persistence baseline execution across all usable stations.
+- Evaluation metrics generated successfully for each station.
 
-* Verified train, validation, and test dataset generation.
-* Verified persistence baseline execution across all usable stations.
-* Confirmed evaluation metrics are successfully generated for each station.
+## Milestone: Data Engineering Pipeline Complete
+
+### Added
+- Merge pipeline (weather + air quality).
+- Dataset trimming (remove leading rows with no PM2.5 label).
+- Feature engineering pipeline.
+- Dataset preparation step.
+
+### Feature Engineering
+- Time features (hour, day, month, weekday).
+- Lag features.
+- Rolling statistics.
+- Wind vector (u/v) features.
+- Cyclical time encoding.
+
+### Improvements
+- Automatic removal of incomplete rows.
+- ML-ready datasets generated per station.
+
+## Milestone: Initial Data Collection
+
+### Added
+- Initial project structure.
+- Weather downloader.
+- Configuration system (`config.py`).
+- Shared utilities (`utils.py`).
+- `api.py` abstraction for OpenAQ requests.
+- OpenAQ station discovery script.
+- OpenAQ sensor discovery.
+- First air quality downloader prototype.
+- Automatic retry mechanism for failed API requests.
+- Exponential backoff for transient network failures.
+- Support for downloading current-year weather data.
+- Dataset validation and profiling.
+- Timestamp alignment between OpenAQ and Open-Meteo.
+
+### Changed
+- Weather downloader now uses `pathlib` instead of manual path strings.
+- Weather downloader creates directories through reusable utilities.
+- Air quality downloader switched from yearly requests to monthly partitioning.
+- Improved filename sanitization for Windows compatibility.
+
+### Fixed
+- `.gitignore` encoding issue caused by UTF-16 LE.
+- Raw datasets being accidentally tracked by Git.
+- Windows path problems caused by invalid station name characters.
+- Downloader repeatedly re-downloading existing weather files.
+
+### Refactored
+- Introduced `BaseDownloader` abstraction.
+- Refactored the weather downloader and air quality downloader to use it.
+- Centralized utilities into `utils.py`.
+- Added a reusable HTTP client (`clients/http_client.py`).
