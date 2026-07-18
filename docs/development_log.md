@@ -1,94 +1,81 @@
 # Development Log
 
-### Completed
+A chronological record of how the project was built, kept alongside `changelog.md` (which tracks *what* changed) to capture *how* and *why* decisions were made along the way.
 
-- Created repository
-- Config file
-- Weather downloader
-- Resumable downloads
-- Shared utilities
-- Completed reusable utility module.
-- Refactored weather downloader.
-- Prevented unnecessary weather downloads.
-- Investigated OpenAQ API.
-- Learned OpenAQ station → sensor → measurement workflow.
-- Implemented yearly downloader prototype.
-- Identified API timeout limitations.
-- Redesigned downloader to use monthly partitions.
-- Added retry logic.
-- Investigated pagination behaviour.
-- Verified timestamps contain no duplicates.
-- Planned reusable HTTP client architecture.
+## Phase 1 — Foundations
 
-## Validation
+- Created the repository and initial project structure.
+- Built the central `config.py` for paths and constants.
+- Implemented the weather downloader with resumable downloads (skips files already on disk).
+- Built shared filesystem utilities (`utils.py`).
+- Refactored the weather downloader to avoid unnecessary re-downloads.
 
-Created automated validation pipeline.
+## Phase 2 — Air Quality API Integration
 
-Checks include:
+- Investigated the OpenAQ API and learned the station → sensor → measurement retrieval flow.
+- Implemented a first yearly-download prototype.
+- Hit API timeout limitations on large yearly requests (`HTTP 408`).
+- Redesigned the downloader to use monthly partitions instead.
+- Added retry logic and investigated pagination behavior.
+- Verified that timestamps contain no duplicates.
+- Planned a reusable HTTP client architecture to share retry/backoff logic across downloaders.
+
+## Phase 3 — Validation & Profiling
+
+Built an automated validation pipeline checking:
 - Missing values
 - Duplicate timestamps
 - File sizes
 - Dataset summaries
 
----
-
-## Profiling
-
-Implemented dataset profiling.
-
-Generated:
+Implemented dataset profiling, generating:
 - Weather summary
 - Air quality summary
 - Station coverage
 - Merged dataset analysis
 
----
+## Phase 4 — Preprocessing
 
-## Preprocessing
+Implemented the preprocessing pipeline as reusable modules:
+- `merger.py`
+- `analyzer.py`
+- `trimmer.py`
+- `feature_engineer.py`
 
-Implemented preprocessing pipeline.
+Resolved a timestamp mismatch between Open-Meteo and OpenAQ by converting both to compatible `datetime` representations before merging.
 
-Modules:
-- merger.py
-- analyzer.py
-- trimmer.py
-- feature_engineer.py
+**Engineering lessons learned**
+- APIs often require partitioned downloads instead of one large request.
+- Retry logic shouldn't live inside application code — it belongs in a shared client.
+- Git-tracked files should always be UTF-8 (a `.gitignore` encoding bug came from UTF-16 LE).
+- Large data pipelines benefit from investing in reusable infrastructure early.
 
-Resolved timestamp mismatch between Open-Meteo and OpenAQ by converting timestamps to compatible datetime representations before merging.
+## Milestone — Data Engineering Complete
 
-Engineering lessons
-
-- APIs often require partitioned downloads instead of large requests.
-- Retry logic should not live inside application code.
-- Git files should always be UTF-8.
-- Large data pipelines benefit from reusable infrastructure.
-
-## Milestone: Data Engineering Complete
-
-Completed the complete preprocessing pipeline.
-
-Implemented:
-- Weather Downloader
-- Air Quality Downloader
+Completed the full preprocessing pipeline:
+- Weather downloader
+- Air quality downloader
 - Validation
 - Profiling
-- Dataset Merging
-- Timestamp Alignment
-- Dataset Trimming
-- Feature Engineering
-- Dataset Preparation
+- Dataset merging
+- Timestamp alignment
+- Dataset trimming
+- Feature engineering
+- Dataset preparation
 
-Engineered Features:
-- Time Features
-- Lag Features
-- Rolling Statistics
-- Wind Components
-- Cyclical Time Features
+**Engineered features**: time features, lag features, rolling statistics, wind vector components, cyclical time encoding.
 
-Prepared datasets are now ready for machine learning.
+Prepared datasets were confirmed ready for machine learning.
 
-Machine Learning:
-Refactored ML architecture with BaseModel.
-Implemented persistence baseline.
-Learned inheritance and method overriding.
-Verified preprocessing pipeline before starting ML.
+## Phase 5 — Machine Learning
+
+- Refactored the ML architecture around a reusable `BaseModel` class.
+- Implemented the persistence baseline.
+- Verified the preprocessing pipeline end-to-end before starting model training.
+- Implemented Linear Regression as the first learned model.
+
+## Next Up
+
+- Random Forest and XGBoost baselines
+- LSTM / Transformer sequence models
+- Wind-weighted graph construction and the GAT-GRU model
