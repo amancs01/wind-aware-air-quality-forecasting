@@ -3,7 +3,7 @@ import re
 
 import pandas as pd
 
-from config import STATIONS_FILE
+from config import STATIONS_FILE, TABLES_DIR
 
 
 def load_stations():
@@ -50,3 +50,33 @@ def get_headers(api_key):
         "X-API-Key": api_key,
         "Accept": "application/json",
     }
+
+def save_table_sample(
+    dataframe: pd.DataFrame,
+    filename: str,
+    rows: int = 5,
+):
+    """
+    Save a sample of a dataframe for documentation
+    and report generation.
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Dataframe to export.
+
+    filename : str
+        Output CSV filename.
+
+    rows : int, default=5
+        Number of rows to save.
+    """
+
+    output_path = TABLES_DIR / filename
+
+    dataframe.head(rows).to_csv(
+        output_path,
+        index=False,
+    )
+
+    print(f"Saved table sample to {output_path}")

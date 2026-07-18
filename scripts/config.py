@@ -30,6 +30,8 @@ PROFILING_DIR = REPORTS_DIR / "profiling"
 
 FIGURES_DIR = REPORTS_DIR / "figures"
 
+TABLES_DIR = REPORTS_DIR / "tables"
+
 PROCESSED_DIR = DATA_DIR / "processed"
 
 MERGED_DIR = PROCESSED_DIR / "merged"
@@ -87,6 +89,15 @@ MODEL_FEATURE_COLUMNS = [
 ]
 
 for directory in [
+
+    # Reports
+    REPORTS_DIR,
+    VALIDATION_DIR,
+    PROFILING_DIR,
+    FIGURES_DIR,
+    TABLES_DIR,
+
+    # Results
     RESULTS_DIR,
     PERSISTENCE_RESULTS_DIR,
     LINEAR_RESULTS_DIR,
@@ -94,8 +105,14 @@ for directory in [
     XGBOOST_RESULTS_DIR,
     LSTM_RESULTS_DIR,
     TRANSFORMER_RESULTS_DIR,
+    FEATURE_ANALYSIS_DIR,
+    TIMESTAMP_VALIDATION_DIR,
+
 ]:
-    directory.mkdir(parents=True, exist_ok=True)
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
 # ----------------------------
 # Weather Configuration
