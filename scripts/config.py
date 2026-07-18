@@ -30,6 +30,8 @@ PROFILING_DIR = REPORTS_DIR / "profiling"
 
 FIGURES_DIR = REPORTS_DIR / "figures"
 
+TABLES_DIR = REPORTS_DIR / "tables"
+
 PROCESSED_DIR = DATA_DIR / "processed"
 
 MERGED_DIR = PROCESSED_DIR / "merged"
@@ -99,6 +101,9 @@ GRAPH_WINDOW_SIZE = 24
 TARGET_HORIZON = 1
 
 # added end
+TIMESTAMP_VALIDATION_DIR = RESULTS_DIR / "timestamp_validation"
+
+MIN_TRAINING_ROWS = 100
 
 FEATURE_EXCLUDE_COLUMNS = [
     "timestamp",
@@ -106,7 +111,40 @@ FEATURE_EXCLUDE_COLUMNS = [
     "target_pm2_5",
 ]
 
+MODEL_FEATURE_COLUMNS = [
+    "pm2_5", "lag_6", "lag_24",
+    "rolling_mean_6", "rolling_std_6",
+    "hour_sin", "hour_cos", "month_sin", "month_cos",
+    "wind_u", "wind_v",
+    "temperature", "humidity", "pressure", "dew_point",
+]
+
 for directory in [
+
+    # Reports
+    DATA_DIR,
+    RAW_DIR,
+    WEATHER_DIR,
+    AIR_QUALITY_DIR,
+    METADATA_DIR,
+    REPORTS_DIR,
+    VALIDATION_DIR,
+    PROFILING_DIR,
+    FIGURES_DIR,
+    TABLES_DIR,
+
+    # Results
+    PROCESSED_DIR,
+    MERGED_DIR,
+    FINAL_DIR,
+    TRIMMED_DIR,
+    FEATURED_DIR,
+    PREPARED_DIR,
+    SPLIT_DIR,
+    TRAIN_DIR,
+    ML_VALIDATION_DIR,
+    TEST_DIR,
+    MODELS_DIR,
     RESULTS_DIR,
     PERSISTENCE_RESULTS_DIR,
     LINEAR_RESULTS_DIR,
@@ -114,8 +152,13 @@ for directory in [
     XGBOOST_RESULTS_DIR,
     LSTM_RESULTS_DIR,
     TRANSFORMER_RESULTS_DIR,
+    FEATURE_ANALYSIS_DIR,
+    TIMESTAMP_VALIDATION_DIR,
 ]:
-    directory.mkdir(parents=True, exist_ok=True)
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
 # ----------------------------
 # Weather Configuration

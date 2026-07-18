@@ -1,32 +1,46 @@
-## Completed
+# Model Plan
 
-✓ Data collection
+This document tracks the modeling roadmap: what's done, what's next, and the plan for the wind-aware graph model.
 
-✓ Data validation
+## Status
 
-✓ Dataset profiling
+| Stage | Status |
+| ----- | ------ |
+| Data collection (OpenAQ + Open-Meteo) | ✅ Done |
+| Data validation | ✅ Done |
+| Dataset profiling | ✅ Done |
+| Timestamp normalization | ✅ Done |
+| Dataset merging | ✅ Done |
+| Dataset trimming | ✅ Done |
+| Feature engineering | ✅ Done |
+| Dataset split (train/val/test) | ✅ Done |
+| Reusable `BaseModel` class | ✅ Done |
+| Persistence baseline | ✅ Done |
+| Linear Regression | ✅ Done |
+| Random Forest | ⬜ Not started |
+| XGBoost | ⬜ Not started |
+| LSTM | ⬜ Not started |
+| Transformer | ⬜ Not started |
+| Graph construction (wind-weighted station graph) | ⬜ Not started |
+| GAT-GRU (wind-aware spatio-temporal model) | ⬜ Not started |
+| Explainability | ⬜ Not started |
 
-✓ Timestamp normalization
+## Modeling Strategy
 
-✓ Dataset merging
+Models are evaluated in increasing order of complexity so that each one has to beat a clear, cheaper baseline before it's worth the added cost:
 
-✓ Dataset trimming
+1. **Persistence baseline** — `PM2.5(t+1) = PM2.5(t)`. The minimum bar every model must clear.
+2. **Classical ML** (Linear Regression → Random Forest → XGBoost) — tabular models using the engineered features in `MODEL_FEATURE_COLUMNS` (`scripts/config.py`), with no notion of sequence or spatial structure.
+3. **Sequence models** (LSTM → Transformer) — capture temporal dependencies within a single station's history that lag/rolling features can only approximate.
+4. **Wind-aware GAT-GRU** — the target architecture. Stations become graph nodes; edges are weighted by wind direction and speed between station pairs, so the model can learn how pollution is transported between locations rather than treating each station in isolation.
 
-✔ Data collection completed
+All models share the same evaluation contract via `models/base_model.py`: load the test split, predict, and report MAE, RMSE, and R² to a per-model `results/<model>/metrics.csv`.
 
-✔ Data preprocessing completed
+## Next Steps
 
-✔ Feature engineering completed
-
-✔ Dataset split completed
-
-✔ Persistence baseline implemented
-
-✔ BaseModel for reusable ML models implemented
-
-Next:
-- Linear Regression
 - Random Forest
 - XGBoost
 - LSTM
 - Transformer
+- Graph construction from station geography + wind field
+- Wind-aware GAT-GRU

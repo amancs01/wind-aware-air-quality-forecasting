@@ -19,22 +19,45 @@ class DatasetPreparer:
 
     def prepare_dataset(self, csv_file):
         df = pd.read_csv(csv_file)
-        df["target_pm2_5"] = df["pm2_5"].shift(-1)
-        
         original_rows = len(df)
+        df["timestamp"] = pd.to_datetime(df["timestamp"]) 
 
-        df = (
-            df
-            .dropna()
-            .reset_index(drop=True)
+        next_timestamp = df["timestamp"].shift(-1)
+        time_gap = next_timestamp - df["timestamp"]
+
+        df["target_pm2_5"] = df["pm2_5"].shift(-1)
+
+        expected_gap = pd.Timedelta(hours=1)
+        df.loc[time_gap != expected_gap, "target_pm2_5"] = pd.NA
+
+        invalid_targets = (
+            df["target_pm2_5"]
+            .isna()
+            .sum()
+        )
+
+        df = df.dropna(
+            subset=[
+                "pm2_5",
+                "target_pm2_5"
+                ]
         )
         if df.empty:
             logger.warning(
                 f"{csv_file.stem}: no usable rows after preprocessing."
             )
             return
-        removed_rows = original_rows - len(df)
+        removed_rows = (
+            original_rows -
+            len(df)
+        )
 
+        logger.info(
+            f"Removed {removed_rows} invalid target rows."
+        )    
+        
+        df = df.reset_index(drop=True)
+       
         missing = df.isna().sum().sum()
 
         if missing > 0:
