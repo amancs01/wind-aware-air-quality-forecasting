@@ -80,15 +80,27 @@ GRAPH_DIR.mkdir(parents=True, exist_ok=True)
 
 STATION_MAPPING_FILE = METADATA_DIR / "station_mapping.csv"
 
+# Distance
 DISTANCE_MATRIX_FILE = GRAPH_DIR / "distance_matrix.csv"
 DISTANCE_EDGES_FILE = GRAPH_DIR / "distance_edges.csv"
 
+# Bearing
+BEARING_MATRIX_FILE = GRAPH_DIR / "bearing_matrix.csv"
+BEARING_EDGES_FILE = GRAPH_DIR / "bearing_edges.csv"
+
+# Static Graph
 STATIC_GRAPH_FILE = GRAPH_DIR / "static_graph.csv"
 ADJACENCY_MATRIX_FILE = GRAPH_DIR / "adjacency_matrix.csv"
 
-GRAPH_SNAPSHOTS_DIR = GRAPH_DIR / "snapshots"
-GRAPH_SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+# Dynamic Edge Weights
+DYNAMIC_EDGE_FILE = GRAPH_DIR / "dynamic_edge_weights.csv"
 
+# Graph Snapshots
+GRAPH_SNAPSHOTS_DIR = GRAPH_DIR / "snapshots"
+GRAPH_SNAPSHOTS_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
+)
 # ----------------------------
 # Graph Parameters
 # ----------------------------
@@ -99,6 +111,7 @@ MAX_EDGE_DISTANCE_KM = None
 
 GRAPH_WINDOW_SIZE = 24
 TARGET_HORIZON = 1
+WIND_ALIGNMENT_THRESHOLD = 45   # degrees
 
 # added end
 TIMESTAMP_VALIDATION_DIR = RESULTS_DIR / "timestamp_validation"

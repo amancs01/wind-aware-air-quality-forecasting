@@ -14,6 +14,7 @@ from config import (
 from utils import (
     sanitize_filename,
     create_station_folder,
+    save_table_sample,
 )
 
 class WeatherDownloader(BaseDownloader):
@@ -101,6 +102,9 @@ class WeatherDownloader(BaseDownloader):
                     output_file,
                 )
                 logger.info(f"✓ Saved {station} ({year})")
+
+              
+
 
 if __name__ == "__main__":
     downloader = WeatherDownloader()

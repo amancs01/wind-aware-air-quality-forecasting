@@ -11,7 +11,7 @@ from config import (
     STATIONS_METADATA_FILE,
 )
 
-from utils import get_headers
+from utils import get_headers, save_table_sample
 
 
 url = f"{OPENAQ_BASE_URL}/locations"
@@ -100,6 +100,11 @@ df = df.sort_values("station")
 df.to_csv(
     STATIONS_METADATA_FILE,
     index=False
+)
+
+save_table_sample(
+    df,
+    "stations_metadata_sample.csv"
 )
 
 print(df)

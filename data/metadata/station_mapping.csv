@@ -1,0 +1,55 @@
+node_id,station,location_id,latitude,longitude,country,timezone,owner,provider,first_date,last_date,pm25_sensor_id,pm1_sensor_id
+0,Bagdol,6230465,27.671706,85.301619,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2026-02-06T09:00:00Z,2026-05-28T17:00:00Z,15374668,15374667.0
+1,Balaju (SC-26)- GD Labs,6094779,27.738289,85.302611,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-14T07:00:00Z,2026-07-19T03:00:00Z,14372576,14372575.0
+2,Balkumari(SC-28)- GD Labs,6121083,27.671069,85.338037,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-06T08:00:00Z,2026-06-13T11:00:00Z,14565418,14565417.0
+3,Baluwatar (SC-02) - GD Labs,5509787,27.7249438,85.331062,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-09-25T07:00:00Z,2026-06-09T10:00:00Z,14207425,14207424.0
+4,CEN-SR-02: Farsidol Brick Factories,5710077,27.6175,85.2961,Nepal,Asia/Kathmandu,Clean Energy Nepal (CEN),AirGradient,2025-09-19T00:00:00Z,2026-07-06T13:00:00Z,14153453,14153452.0
+5,"CEN-SR-25: Patako Chowk, Patan Durbar Square",5695597,27.673979,85.325392,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-09-19T00:00:00Z,2026-06-15T09:00:00Z,14153463,14153462.0
+6,Chhetrapati (SC - 19) - GD Labs,6093432,27.7119136,85.3061473,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-13T06:00:00Z,2026-07-19T03:00:00Z,14363831,14363830.0
+7,Chovar (SC - 07) - GD Labs,5676345,27.6662854,85.2937189,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-09-19T00:00:00Z,2026-07-19T03:00:00Z,14153368,14153367.0
+8,"Dabali, Handigaun",2848864,27.68189114,85.28707804,Nepal,Asia/Kathmandu,Unknown Person,AirGradient,2024-05-16T03:00:00Z,2026-07-19T03:00:00Z,9235746,9235744.0
+9,"Dhathutole, Handigaun",1236017,27.727502,85.330135,Nepal,Asia/Kathmandu,Unknown Governmental Organization,AirGradient,2023-07-15T13:00:00Z,2026-06-01T04:00:00Z,6530219,8462455.0
+10,Embassy Kathmandu,3459,27.738703,85.336206,Nepal,Asia/Kathmandu,Unknown Governmental Organization,AirNow,2017-03-03T00:00:00Z,2026-06-17T23:15:00Z,7710,
+11,Farsidol Relocated,5699844,27.609972,85.296917,Nepal,Asia/Kathmandu,Clean Energy Nepal (CEN),AirGradient,2025-11-07T06:00:00Z,2026-05-11T06:00:00Z,14573141,14573140.0
+12,Gaushala Chowk (SC-01) - GD Labs,5506835,27.707763,85.343189,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-09-19T00:00:00Z,2026-07-19T03:00:00Z,14153358,14153357.0
+13,Gokarneshwor (SC-13) - GD Labs,6083043,27.7206848,85.381682,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-10T07:00:00Z,2026-06-04T15:00:00Z,14335684,14335683.0
+14,Golfutar (SC- 17) - GD Labs,6093549,27.74857,85.349052,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-13T07:00:00Z,2026-07-19T03:00:00Z,14363845,14363844.0
+15,Gothatar (SC-12) - GD Labs,6071242,27.7109112,85.3803717,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-09T08:00:00Z,2026-07-02T11:00:00Z,14327776,14327775.0
+16,"Haugal Ganesh Temple, Patan Durbar Square",6151854,27.671944,85.324444,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-12-04T05:00:00Z,2026-06-12T08:00:00Z,14793466,14793465.0
+17,Herne Katha,6336000,27.6838241,85.3101773,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2026-05-05T13:00:00Z,2026-06-15T09:00:00Z,16162468,16162467.0
+18,Imadol(SC-27)- GD Labs,6121047,27.661062,85.347716,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-06T07:00:00Z,2026-07-04T06:00:00Z,14565158,14565157.0
+19,Jadibuti (SC-35)-GD Labs,6133623,27.682109,85.354791,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-17T10:00:00Z,2026-07-19T03:00:00Z,14659111,14659110.0
+20,Kadhaghari (SC-42)-GD Labs,6128821,27.696521,85.369882,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-13T08:00:00Z,2026-07-19T03:00:00Z,14623361,14623360.0
+21,Kathmandu University,6218294,27.620041043666568,85.53943575377038,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2026-01-28T05:00:00Z,2026-01-28T07:00:00Z,15286458,15286457.0
+22,Kaushaltar (SC - 33) GD labs,6121225,27.6724803,85.3617649,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-06T11:00:00Z,2026-07-16T12:00:00Z,14566457,14566456.0
+23,Khokana (SC-41)-GD Labs,6141873,27.637633,85.301661,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-25T06:00:00Z,2026-07-19T03:00:00Z,14718256,14718255.0
+24,Kritipur Ward 3 (SC-25) - GD Labs,6094706,27.6774083,85.2727816,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-14T06:00:00Z,2026-07-19T03:00:00Z,14372571,14372570.0
+25,Kupondole (SC-40)-GD Labs,6141912,27.689661,85.310442,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-25T08:00:00Z,2026-07-19T03:00:00Z,14718801,14718800.0
+26,Lagankhel (SC - 05) - GD Labs,5509788,27.666459,85.323093,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-03T00:00:00Z,2026-07-17T09:00:00Z,14272754,14272753.0
+27,Lamtangil (SC-04)- GD Labs,5519358,27.731368,85.336783,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-12-24T09:00:00Z,2026-07-19T03:00:00Z,14976381,14976380.0
+28,Mahankal (SC-16) - GD Labs,6093431,27.7258555,85.3581047,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-13T05:00:00Z,2026-07-19T03:00:00Z,14362965,14362964.0
+29,Mid Baneshwor (SC-39)-GD Labs,6142022,27.693662,85.340501,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-25T09:00:00Z,2026-07-19T01:00:00Z,14719352,14719351.0
+30,Nakhipot (SC-08) - GD Labs,5633032,27.6510811,85.3178568,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-09-19T00:00:00Z,2026-05-20T04:00:00Z,14153373,14153372.0
+31,Phora Durbar Kathman,3460,27.712464,85.315703,Nepal,Asia/Kathmandu,Unknown Governmental Organization,AirNow,2017-03-03T00:00:00Z,2025-03-24T14:15:00Z,7711,
+32,Pulchowk (SC-15)-GD Labs,6151750,27.676946,85.318494,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-12-04T05:00:00Z,2025-12-04T05:00:00Z,14792689,14792688.0
+33,Pulchowk (SC-44) - GD Labs,5598104,27.6773887,85.3184176,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-09-19T00:00:00Z,2026-01-27T08:00:00Z,14153468,14153467.0
+34,Pulchowk Engineering Campus - ICE Labs,6280985,27.681232,85.319189,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2026-03-22T12:00:00Z,2026-07-13T08:00:00Z,15750367,15750366.0
+35,Purano naikap (SC-29)-GD Labs,6138068,27.705718,85.255141,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-12-05T05:00:00Z,2026-07-19T03:00:00Z,14802207,14802206.0
+36,Ramkot (SC - 10) - GD Labs,6093752,27.695671,85.337428,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-10-13T09:00:00Z,2026-07-01T09:00:00Z,14365294,14365293.0
+37,Ranibari (SC-43)-GD Labs,6142174,27.727562,85.321155,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-25T11:00:00Z,2026-07-19T03:00:00Z,14720442,14720441.0
+38,Sanepa (SC - 22) - GD Labs,6094778,27.6854882,85.3091634,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-14T08:00:00Z,2026-07-19T03:00:00Z,14372847,14372846.0
+39,Shantichowk (SC-11) - GD Labs,6070692,27.7239866,85.2793095,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-09T07:00:00Z,2026-07-19T03:00:00Z,14327494,14327493.0
+40,Sifal(SC-03)- GD Labs,5518333,27.710794,85.340591,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-12-24T08:00:00Z,2026-06-23T18:00:00Z,14975414,14975413.0
+41,Sitapaila (SC-30) - GD Labs,6120977,27.7093728,85.2808987,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-06T06:00:00Z,2026-06-03T07:00:00Z,14564638,14564637.0
+42,Sorakhutte (SC-36)-GD Labs,6142175,27.71847,85.310271,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-11-25T10:00:00Z,2026-07-15T11:00:00Z,14720447,14720446.0
+43,Sunakothi (SC - 06) - GD Labs,5634500,27.630412,85.320402,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-09-19T00:00:00Z,2026-07-19T03:00:00Z,14153363,14153362.0
+44,Sundarighat (SC-23) - GD Labs,6094668,27.6737702,85.2948301,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-14T05:00:00Z,2026-07-19T03:00:00Z,14371768,14371767.0
+45,Tankeshwor (SC- 18) - GD Labs,6093550,27.7003531,85.3015259,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-13T07:00:00Z,2026-07-19T03:00:00Z,14363850,14363849.0
+46,Tarakeswor (SC-14)-GD Labs,6093548,27.759667,85.289631,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-13T07:00:00Z,2026-05-22T10:00:00Z,14363840,14363839.0
+47,Tarakeswor (SC-15)- GD Labs,6096081,27.759288,85.289453,Nepal,Asia/Kathmandu,AirGradient,AirGradient,2025-10-15T11:00:00Z,2025-10-16T06:00:00Z,14382736,14382735.0
+48,Taudaha (SC - 09) - GD Labs,5676826,27.651121,85.283954,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-09-19T00:00:00Z,2026-07-06T10:00:00Z,14153378,14153377.0
+49,Teku Ward 12 (SC - 20) - GD Labs ,6093551,27.6988338,85.3041625,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-19T09:00:00Z,2026-07-09T06:00:00Z,14415608,14415607.0
+50,Tokha (SC - 32) - GD Labs,6121118,27.7376474,85.319391,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-06T09:00:00Z,2026-07-16T12:00:00Z,14565678,14565677.0
+51,Tokha (SC-31) - GD Labs,6121046,27.7560283,85.3268462,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-11-06T07:00:00Z,2026-07-19T03:00:00Z,14565153,14565152.0
+52,Tripureshowr (SC-24)- GD Labs,6176215,27.692998,85.312458,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-12-24T07:00:00Z,2026-07-19T03:00:00Z,14974921,14974920.0
+53,Tyanglaphat (SC - 21) - GD Labs,6094777,27.6861651,85.28026,Nepal,Asia/Kathmandu,Green Decision Labs and Research,AirGradient,2025-10-14T06:00:00Z,2026-07-03T04:00:00Z,14372566,14372565.0
