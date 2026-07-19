@@ -15,6 +15,11 @@ Author:
     Nirika Lamichhane
 """
 
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 import math
 import pandas as pd
 
@@ -64,6 +69,13 @@ class DistanceMatrixGenerator:
         lat2,
         lon2,
     ):
+        """
+        Computes the great-circle distance between two
+        geographic coordinates using the Haversine formula.
+
+        Returns:
+            Distance in kilometers.
+        """
 
         lat1 = math.radians(lat1)
         lon1 = math.radians(lon1)
@@ -86,7 +98,7 @@ class DistanceMatrixGenerator:
             math.sqrt(1 - a),
         )
 
-        return self.EARTH_RADIUS_KM * c
+        return DistanceMatrixGenerator.EARTH_RADIUS_KM * c
 
     # -------------------------------------------------------
     # Generate Distance Matrix
@@ -122,13 +134,10 @@ class DistanceMatrixGenerator:
                 target = df.iloc[j]
 
                 distance = self.haversine(
-
                     source["latitude"],
                     source["longitude"],
-
                     target["latitude"],
                     target["longitude"],
-
                 )
 
                 distance = round(
@@ -136,7 +145,6 @@ class DistanceMatrixGenerator:
                     3,
                 )
 
-                # Fill symmetric matrix
                 matrix.loc[
                     source["node_id"],
                     target["node_id"],
@@ -147,7 +155,6 @@ class DistanceMatrixGenerator:
                     source["node_id"],
                 ] = distance
 
-                # Skip self-loop in edge table
                 if i != j:
 
                     edge_list.append({
