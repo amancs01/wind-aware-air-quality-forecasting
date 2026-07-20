@@ -8,7 +8,6 @@ Edges are created using K-Nearest Neighbors (KNN).
 
 Inputs
 ------
-data/metadata/station_mapping.csv
 data/processed/graph/distance_matrix.csv
 
 Outputs
@@ -26,7 +25,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import pandas as pd
-import numpy as np
 
 from logger import logger
 
@@ -56,10 +54,16 @@ class StaticGraphBuilder:
 
         logger.info("Loading distance matrix...")
 
-        return pd.read_csv(
+        df = pd.read_csv(
             self.distance_file,
             index_col=0,
         )
+
+        # Convert both rows and columns to integers
+        df.index = df.index.astype(int)
+        df.columns = df.columns.astype(int)
+
+        return df
 
     # -----------------------------------------------------
     # Build KNN Graph
@@ -75,6 +79,7 @@ class StaticGraphBuilder:
             0,
             index=node_ids,
             columns=node_ids,
+            dtype=int,
         )
 
         edges = []
@@ -83,10 +88,10 @@ class StaticGraphBuilder:
 
             distances = distance_matrix.loc[source].copy()
 
-            # remove self
-            distances = distances.drop(source)
+            # remove self node
+            distances = distances.drop(labels=source)
 
-            # nearest K stations
+            # K nearest neighbours
             neighbors = distances.nsmallest(K_NEIGHBORS)
 
             for target, distance in neighbors.items():
@@ -99,29 +104,25 @@ class StaticGraphBuilder:
                     6,
                 )
 
-                edges.append({
-
-                    "source": source,
-
-                    "target": target,
-
-                    "distance_km": round(distance,3),
-
-                    "weight": weight,
-
-                })
+                edges.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "distance_km": round(float(distance), 3),
+                        "weight": weight,
+                    }
+                )
 
         edge_df = (
             pd.DataFrame(edges)
-            .drop_duplicates(
-                subset=["source","target"]
-            )
+            .drop_duplicates(subset=["source", "target"])
+            .reset_index(drop=True)
         )
 
         return adjacency, edge_df
 
     # -----------------------------------------------------
-    # Save
+    # Save Outputs
     # -----------------------------------------------------
 
     def save_outputs(
@@ -140,11 +141,11 @@ class StaticGraphBuilder:
         )
 
         logger.info(
-            f"Saved adjacency matrix -> {self.adjacency_output}"
+            f"Adjacency matrix saved -> {self.adjacency_output}"
         )
 
         logger.info(
-            f"Saved static graph -> {self.graph_output}"
+            f"Static graph saved -> {self.graph_output}"
         )
 
     # -----------------------------------------------------
@@ -157,9 +158,9 @@ class StaticGraphBuilder:
         edge_df,
     ):
 
-        logger.info("="*50)
+        logger.info("=" * 50)
         logger.info("Static Graph Summary")
-        logger.info("="*50)
+        logger.info("=" * 50)
 
         logger.info(
             f"Nodes : {len(adjacency)}"
@@ -170,16 +171,15 @@ class StaticGraphBuilder:
         )
 
         logger.info(
-            f"K     : {K_NEIGHBORS}"
+            f"K Neighbours : {K_NEIGHBORS}"
         )
 
-        density = (
-            adjacency.values.sum()
-            / (len(adjacency)**2)
+        density = adjacency.values.sum() / (
+            len(adjacency) * (len(adjacency) - 1)
         )
 
         logger.info(
-            f"Density : {density:.3f}"
+            f"Density : {density:.4f}"
         )
 
     # -----------------------------------------------------
