@@ -30,6 +30,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 
+# Local archives / backup zips
+*.zip
+
 # Raw datasets
 data/raw/
 
