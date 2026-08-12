@@ -116,6 +116,8 @@ WIND_ALIGNMENT_THRESHOLD = 45   # degrees
 # added end
 TIMESTAMP_VALIDATION_DIR = RESULTS_DIR / "timestamp_validation"
 
+TEMPORAL_FEATURE_VALIDATION_DIR = RESULTS_DIR / "temporal_feature_validation"
+
 MIN_TRAINING_ROWS = 100
 
 FEATURE_EXCLUDE_COLUMNS = [
@@ -167,6 +169,7 @@ for directory in [
     TRANSFORMER_RESULTS_DIR,
     FEATURE_ANALYSIS_DIR,
     TIMESTAMP_VALIDATION_DIR,
+    TEMPORAL_FEATURE_VALIDATION_DIR,
 ]:
     directory.mkdir(
         parents=True,
