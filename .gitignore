@@ -41,6 +41,8 @@ data/processed/
 
 #stations datasets
 data/metadata/stations_metadata.csv
+data/metadata/station_mapping.csv
+data/metadata/station_mapping.json
 
 #report datasets
 reports/validation/weather_validation.csv
