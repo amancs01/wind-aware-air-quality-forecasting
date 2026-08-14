@@ -41,6 +41,21 @@ def create_station_folder(base_dir: Path, station: str):
     return station_folder
 
 
+def station_dataset_name(
+    station: str,
+    sensor_id=None,
+    require_sensor_id: bool = False,
+) -> str:
+    """
+    Build a filesystem-safe dataset name for station-scoped outputs.
+    """
+
+    if require_sensor_id:
+        station = f"{station}__sensor_{int(sensor_id)}"
+
+    return sanitize_filename(station)
+
+
 def get_headers(api_key):
     """
     Return OpenAQ request headers.

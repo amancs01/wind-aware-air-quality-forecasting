@@ -1,7 +1,13 @@
-from dotenv import load_dotenv
 import os
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv is not None:
+    load_dotenv()
+
 from pathlib import Path
 
 # ----------------------------
@@ -18,6 +24,8 @@ WEATHER_DIR = RAW_DIR / "weather"
 
 AIR_QUALITY_DIR = RAW_DIR / "air_quality"
 
+AIR_QUALITY_HOURLY_RAW_DIR = RAW_DIR / "air_quality_hourly"
+
 METADATA_DIR = DATA_DIR / "metadata"
 
 STATIONS_FILE = METADATA_DIR / "stations_metadata.csv"
@@ -33,6 +41,8 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 TABLES_DIR = REPORTS_DIR / "tables"
 
 PROCESSED_DIR = DATA_DIR / "processed"
+
+AIR_QUALITY_HOURLY_DIR = PROCESSED_DIR / "air_quality_hourly"
 
 MERGED_DIR = PROCESSED_DIR / "merged"
 
@@ -141,6 +151,7 @@ for directory in [
     RAW_DIR,
     WEATHER_DIR,
     AIR_QUALITY_DIR,
+    AIR_QUALITY_HOURLY_RAW_DIR,
     METADATA_DIR,
     REPORTS_DIR,
     VALIDATION_DIR,
@@ -150,6 +161,7 @@ for directory in [
 
     # Results
     PROCESSED_DIR,
+    AIR_QUALITY_HOURLY_DIR,
     MERGED_DIR,
     FINAL_DIR,
     TRIMMED_DIR,
