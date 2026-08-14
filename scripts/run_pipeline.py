@@ -19,6 +19,7 @@ STEPS = [
     "07b_validate_timestamps.py",
     "07c_validate_temporal_features.py",
     "08_feature_engineering.py",
+    "07d_validate_wind_components.py",
     "09_prepare_dataset.py",
     "10_split_dataset.py",
     "11_verify_split.py",

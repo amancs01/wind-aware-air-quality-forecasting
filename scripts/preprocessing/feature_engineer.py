@@ -82,16 +82,19 @@ class FeatureEngineer:
             .std()
         )
 
+        # Meteorological wind direction is the direction FROM which wind
+        # blows, clockwise from north. Convert to physical eastward (u)
+        # and northward (v) components.
         wind_rad = np.deg2rad(df["wind_direction"])
 
         df["wind_u"] = (
-            df["wind_speed"] *
-            np.cos(wind_rad)
+            -df["wind_speed"] *
+            np.sin(wind_rad)
         )
 
         df["wind_v"] = (
-            df["wind_speed"] *
-            np.sin(wind_rad)
+            -df["wind_speed"] *
+            np.cos(wind_rad)
         )
 
         df["hour_sin"] = np.sin(
