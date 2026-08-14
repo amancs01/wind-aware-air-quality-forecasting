@@ -49,11 +49,47 @@ All forecasting models are compared using the same three regression metrics, for
 
 - Mean Absolute Error (MAE)
 - Root Mean Squared Error (RMSE)
-- Coefficient of Determination (R²)
+- Coefficient of Determination (R2)
+
+Baseline reports now distinguish macro and pooled metrics:
+
+- Macro metrics average station-level scores equally.
+- Pooled metrics are computed over all evaluated prediction rows.
+- Macro mean R2 is not a global R2 and is unstable for stations with
+  very low target variance.
+
+The fair baseline benchmark uses the same row mask for persistence and
+Ridge: all configured model features plus `target_pm2_5` must be
+present. Persistence still predicts current PM2.5; the shared frame only
+controls which rows are scored.
 
 ## Model Architecture
 
-A reusable `BaseModel` class standardizes dataset loading, evaluation, result storage, and reporting across models. Future models (Random Forest, XGBoost, LSTM, Transformer, and eventually the GAT-GRU) inherit from this base class and implement only their own training/prediction logic.
+A reusable `BaseModel` class standardizes dataset loading, construction
+of the fair evaluation frame, evaluation, result storage, and reporting
+across models. Future models should inherit from this base class and
+implement only their own training/prediction logic.
+
+Current fair benchmark interpretation:
+
+```text
+Persistence pooled R2: 0.820
+Ridge(alpha=10.0) pooled R2: 0.751
+Persistence macro mean R2: 0.692
+Ridge(alpha=10.0) macro mean R2: -127.128
+Ridge(alpha=10.0) macro median R2: 0.570
+```
+
+The Ridge macro mean is dominated by Sundarighat (SC-23) - GD Labs,
+where the test target variance is extremely small and the test PM2.5
+distribution shifts far below the training distribution. Removing that
+station from the macro mean changes Ridge macro R2 from -127.128 to
+about 0.341, so this is an R2 aggregation warning rather than evidence
+that every Ridge forecast collapsed.
+
+Persistence remains the stronger fair benchmark overall. The one-hour
+PM2.5 autocorrelation is high, so a model must add real value beyond
+current PM2.5 to beat persistence.
 
 ## Data Quality Decisions
 

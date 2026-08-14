@@ -2,6 +2,33 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Fair Baseline Evaluation
+
+### Changed
+- Added a reusable model evaluation frame requiring
+  `MODEL_FEATURE_COLUMNS + target_pm2_5`.
+- Persistence and Ridge now score identical station/source-index/
+  timestamp/target rows.
+- Persistence still predicts current PM2.5; only its scored rows changed
+  to match Ridge-valid benchmark rows.
+- `BaseModel` now exports per-station coverage metrics, row-level
+  predictions, and aggregate summary metrics.
+- Summary reporting now distinguishes macro mean metrics, macro median
+  R2, pooled metrics, and positive/negative R2 dataset counts.
+- Ridge remains `Ridge(alpha=10.0)`; no tuning or feature-set change was
+  introduced.
+
+### Verified
+- Persistence prediction rows: 26,236 across 51 stations.
+- Ridge prediction rows: 26,236 across 51 stations.
+- Row identity match between baselines: exact station/source-index/
+  timestamp/target match with zero mismatches.
+- Fair persistence summary: macro MAE 5.830, macro RMSE 8.815, macro
+  mean R2 0.692, pooled MAE 6.005, pooled RMSE 12.083, pooled R2 0.820.
+- Fair Ridge summary: macro MAE 9.446, macro RMSE 12.075, macro mean R2
+  -127.128, macro median R2 0.570, pooled MAE 9.487, pooled RMSE
+  14.202, pooled R2 0.751.
+
 ## Milestone: Machine Learning Pipeline
 
 ### Added

@@ -50,7 +50,7 @@ Feature Correlation Analysis (14)
 | Feature Engineering | `08_feature_engineering.py` | Add lag features, rolling statistics, cyclical time encodings, and wind vector (u/v) components |
 | Dataset Preparation | `09_prepare_dataset.py` | Build the final modeling table, including the one-hour-ahead `target_pm2_5` label |
 | Splitting | `10_split_dataset.py`, `11_verify_split.py` | Chronological train / validation / test split per station, with integrity checks |
-| Baseline & Models | `12_persistence_baseline.py`, `13_linear_regression.py` | Evaluate a naive persistence baseline and a linear regression model using shared MAE / RMSE / R² metrics |
+| Baseline & Models | `12_persistence_baseline.py`, `13_linear_regression.py` | Evaluate a naive persistence baseline and a Ridge regression model using a shared evaluation frame and MAE / RMSE / R2 metrics |
 | Analysis | `14_feature_correlation.py` | Compute feature statistics and correlations against the forecasting target |
 
 ## Design Principles
@@ -59,6 +59,34 @@ Feature Correlation Analysis (14)
 - **Reusable modeling**: `models/base_model.py` standardizes dataset loading, evaluation, and result export so every forecasting model (persistence, linear regression, and future models) reports metrics consistently.
 - **Idempotent downloads**: Both downloaders skip files that already exist, so the pipeline can be safely re-run without re-fetching existing data.
 - **Central configuration**: All paths, constants, and the model feature list live in `scripts/config.py`, avoiding hardcoded values scattered across scripts.
+
+## Baseline Evaluation Protocol
+
+Persistence and Ridge are compared on the same reusable evaluation frame.
+For each test split, `BaseModel.prepare_evaluation_frame()` keeps only
+rows where every `MODEL_FEATURE_COLUMNS` value and `target_pm2_5` are
+present. This makes the naive persistence equation fair against Ridge:
+
+```text
+prediction(t + 1) = pm2_5(t)
+```
+
+The persistence prediction itself is unchanged; only its scored rows are
+restricted to the Ridge-valid benchmark rows.
+
+Each model writes:
+
+- `metrics.csv`: per-station metrics plus original row count,
+  evaluated row count, removed row count, and evaluation coverage.
+- `predictions.csv`: station, original source index, timestamp, target,
+  and prediction for row-level comparison.
+- `summary.csv`: macro mean MAE/RMSE/R2, macro median R2, pooled
+  MAE/RMSE/R2, and positive/negative R2 station counts.
+
+Macro metrics average station-level metrics equally. Pooled metrics are
+computed across all evaluated prediction rows. The simple mean of
+per-station R2 values is not a global R2 and can be dominated by
+low-variance stations.
 
 ## Planned Extensions
 

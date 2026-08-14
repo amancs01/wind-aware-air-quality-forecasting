@@ -41,6 +41,29 @@ Because most stations only have consistent PM2.5 coverage starting in late 2025 
 
 Feature scaling/normalization is not yet implemented in the pipeline. It will be added once tree-based and sequence models are introduced (see `docs/model_plan.md`), since linear regression and the persistence baseline don't strictly require it.
 
+## Model Evaluation Frame
+
+The baseline model scripts do not change the feature set during
+evaluation. Instead, they use a shared row-validity frame defined by:
+
+```text
+MODEL_FEATURE_COLUMNS + target_pm2_5
+```
+
+Rows missing any of those values are excluded from both Ridge and
+persistence scoring. This keeps the persistence equation unchanged while
+ensuring persistence and Ridge are measured on identical station,
+timestamp, source-index, and target rows.
+
+Current generated test coverage under this frame:
+
+```text
+test rows before evaluation frame: 30,270
+test rows evaluated by both baselines: 26,236
+removed rows: 4,034
+evaluation coverage: 86.67%
+```
+
 ## Current Canonical Hourly Timestamp Semantics
 
 The modeling air-quality layer now uses OpenAQ `/hours`, prepared into

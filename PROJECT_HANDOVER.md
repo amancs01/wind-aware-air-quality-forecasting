@@ -198,8 +198,11 @@ pd.merge(
 
 Therefore the weather dataframe is the left side of the merge.
 
-Air-quality timestamps are normalized and floored to the hour before
-merging.
+Air-quality timestamps come from the canonical OpenAQ `/hours` layer.
+The model timestamp is `datetime_to_local`, interpreted as the local
+one-hour interval end. The merge path no longer floors or rounds AQ
+timestamps. Duplicate human-readable station names are preserved with
+sensor-qualified dataset names where needed.
 
 ### Trim
 
@@ -239,9 +242,11 @@ This is one of the most important findings of the project.
 
 ------------------------------------------------------------------------
 
-## 8. Critical Open Architectural Issue: Lag/Rolling Semantics
+## 8. Resolved Lag/Rolling Timestamp Semantics
 
-This issue is **not fully resolved yet**.
+The earlier concern that row-based lag/rolling operations might cross
+non-hourly timestamp gaps has been resolved by the canonical hourly AQ
+downstream migration.
 
 ### Current code
 
@@ -255,41 +260,21 @@ df["lag_24"] = df["pm2_5"].shift(24)
 df["rolling_mean_6"] = df["pm2_5"].rolling(6).mean()
 ```
 
-### Why this requires care
+### Validated behavior
 
-There were two competing ideas in the previous discussion:
+After switching the merge to canonical hourly AQ and regenerating
+trimmed data, timestamp validation found zero invalid hourly gaps.
+Temporal-feature validation then reported 100% timestamp correctness for
+`lag_1`, `lag_3`, `lag_6`, `lag_12`, `lag_24`, `rolling_3`,
+`rolling_6`, and `rolling_24`.
 
-1.  **Move dataset preparation before feature engineering.**
-2.  **Keep feature engineering before row removal so `.shift()` still
-    corresponds to the original timeline.**
+Therefore row-based lag and rolling operations are currently
+timestamp-correct on regenerated trimmed data. Remaining missing
+lag/rolling values come from missing PM2.5 measurement history within an
+otherwise hourly timeline, not from hidden timestamp jumps.
 
-Neither should be accepted blindly.
-
-The timestamp validator has already shown that the trimmed datasets
-themselves can contain non-hourly jumps. Therefore, even before dataset
-preparation removes rows, row-based `.shift(6)` is not guaranteed to
-mean six real hours for every station.
-
-At the same time, simply moving feature engineering after dataset
-preparation is also unsafe, because dataset preparation deliberately
-removes rows, creating additional row-position gaps.
-
-### Correct next investigation
-
-Do **not** solve this by merely swapping stages.
-
-The likely robust solution is to make temporal feature construction
-**timestamp-aware**. Possible approaches to evaluate include:
-
--   reindexing each station onto a complete hourly timeline before
-    lag/rolling construction,
--   timestamp-based joins for exact `t-1`, `t-3`, `t-6`, `t-12`, `t-24`,
--   time-based rolling windows with explicit continuity requirements,
--   segmenting the series into continuous hourly blocks and computing
-    temporal features within each block.
-
-This must be decided carefully before further model conclusions are
-trusted.
+Timestamp-aware reindexing or join-based lag construction is not the
+current highest-priority task.
 
 ------------------------------------------------------------------------
 
@@ -402,18 +387,18 @@ deleting otherwise valid station data during early preprocessing.
 
 ------------------------------------------------------------------------
 
-## 12. Missing-Value Handling
+## 12. Missing-Value Handling and Evaluation Frame
 
-An important recent change exists in `BaseModel.prepare_features()`:
+An important model-safety rule exists in `BaseModel`:
 
 ``` python
-df = df.dropna(
-    subset=MODEL_FEATURE_COLUMNS + ["target_pm2_5"]
-)
+evaluation_df = df.dropna(subset=MODEL_FEATURE_COLUMNS + ["target_pm2_5"])
 ```
 
-This was added because Ridge regression failed when lag/rolling features
-contained NaN values.
+This is now exposed as `prepare_evaluation_frame()` and is used by both
+persistence and Ridge during evaluation. It preserves the original
+source index and timestamp in exported predictions so row identity can
+be checked across models.
 
 Current model features are:
 
@@ -435,11 +420,21 @@ pressure
 dew_point
 ```
 
-Treat this `dropna` as a **working model-safety measure**, not
-necessarily the final research methodology.
+Treat this row mask as the current fair benchmark definition. It is not
+feature tuning and it does not change `MODEL_FEATURE_COLUMNS`.
 
-After temporal-feature construction is corrected, revisit whether this
-filtering is still needed and quantify how many rows it removes.
+Current generated split coverage under this mask:
+
+``` text
+train rows before evaluation frame: 141,120
+train rows valid for Ridge features: 115,725
+validation rows before evaluation frame: 30,247
+validation rows valid for Ridge features: 25,689
+test rows before evaluation frame: 30,270
+test rows evaluated by both baselines: 26,236
+test rows removed by evaluation frame: 4,034
+test evaluation coverage: 86.67%
+```
 
 ------------------------------------------------------------------------
 
@@ -454,7 +449,8 @@ prediction = current pm2_5
 ```
 
 The persistence baseline uses the shared `BaseModel` evaluation
-utilities.
+utilities and now scores only the same Ridge-valid benchmark rows. Its
+prediction equation is unchanged.
 
 ### Linear model
 
@@ -475,13 +471,19 @@ All models use:
 
 -   MAE
 -   RMSE
--   R²
+-   R2
 
-Earlier experimental results mentioned during development included a
-persistence model that substantially outperformed an earlier linear
-model. Those values were produced before all later preprocessing fixes,
-so they should **not be treated as final results**. Re-run and record
-metrics after the temporal-feature issue is resolved.
+Current result exports:
+
+``` text
+metrics.csv: per-station metrics and evaluation coverage
+predictions.csv: station, source_index, timestamp, target, prediction
+summary.csv: macro metrics, pooled metrics, and R2 dataset counts
+```
+
+Macro metrics average station-level scores equally. Pooled metrics are
+computed across all evaluated rows. Macro mean R2 is not a global R2 and
+can be dominated by low-variance stations.
 
 ------------------------------------------------------------------------
 
@@ -700,112 +702,59 @@ Future ChatGPT sessions should not:
 
 ## 20. Exact Current Stopping Point
 
-The project stopped immediately after deciding **not to blindly perform
-the proposed pipeline swap**.
+The project has completed the fair reusable baseline evaluation task.
 
 The next task is **not** Random Forest, XGBoost, GRU, or GNN training.
 
-The next task is:
+The current state is:
 
-> Determine and implement the correct timestamp-aware strategy for PM2.5
-> lag and rolling features.
+-   canonical hourly AQ migration is implemented and validated;
+-   lag/rolling timestamp correctness is validated at 100%;
+-   persistence and Ridge are now evaluated on identical test rows;
+-   row-level prediction exports confirm exact station/source-index/
+    timestamp/target matches between baselines;
+-   Ridge remains `Ridge(alpha=10.0)` and has not been tuned;
+-   validation data has not yet been used for hyperparameter selection.
 
-We know:
-
--   the target is now protected against non-one-hour next observations;
--   timestamp validation reports real discontinuities;
--   row-based lag/rolling operations can therefore be temporally
-    incorrect;
--   dropping rows before feature engineering would also create
-    row-position discontinuities.
-
-This is the highest-priority preprocessing issue.
+The fair result is that persistence still outperforms the current Ridge
+baseline overall. This is a legitimate research finding, not an
+evaluation-row artifact.
 
 ------------------------------------------------------------------------
 
 ## 21. Recommended Next Development Path
 
-### Step 1 --- Quantify the problem
+### Step 1 --- Preserve the fair benchmark contract
 
-For each station, determine how many engineered lag values correspond to
-the exact intended timestamp.
+Any next model must use the same chronological splits and should report
+the same coverage, macro, pooled, and row-level prediction outputs.
 
-For example, verify whether a `lag_6` value at time `t` came from
-exactly `t - 6 hours`.
+### Step 2 --- Interpret the Ridge baseline before adding model classes
 
-Do this before changing the implementation.
+Use the existing fair results to explain where Ridge fails:
 
-### Step 2 --- Choose a timestamp-aware temporal-feature strategy
+-   one-hour PM2.5 autocorrelation is high, making persistence strong;
+-   Ridge is a global linear model trained separately per station;
+-   station-level distribution shifts can hurt Ridge;
+-   macro mean R2 is sensitive to low-variance stations.
 
-Evaluate the alternatives:
+### Step 3 --- Use validation data before changing conclusions
 
--   hourly reindexing,
--   exact timestamp joins,
--   continuous-segment feature engineering,
--   time-based rolling.
+If the linear baseline is improved, use the validation split to tune
+regularization or compare simple linear variants. Do not tune on the
+test split.
 
-Choose one and document why.
+### Step 4 --- Keep feature changes explicit
 
-### Step 3 --- Rebuild temporal features
+Do not silently add or remove model features. Any feature-set change
+should be a separate research decision with regenerated metrics.
 
-Regenerate `FEATURED_DIR` and downstream datasets from scratch.
+### Step 5 --- Only then consider the next baseline family
 
-### Step 4 --- Re-run dataset preparation and split
-
-Clear stale generated outputs before regeneration.
-
-### Step 5 --- Re-run baselines
-
-Run:
-
-``` text
-Persistence
-Ridge regression
-```
-
-Record per-station and aggregate metrics.
-
-### Step 6 --- Compare against previous behavior
-
-Measure:
-
--   number of usable stations,
--   number of usable rows,
--   rows removed because temporal history is unavailable,
--   persistence metrics,
--   Ridge metrics.
-
-### Step 7 --- Update documentation
-
-At minimum update:
-
-``` text
-docs/architecture.md
-docs/preprocessing_plan.md
-docs/research_notes.md
-docs/changelog.md
-```
-
-### Step 8 --- Commit the temporal-feature correction separately
-
-Use a focused commit message such as:
-
-`Make lag and rolling features timestamp-aware`
-
-### Step 9 --- Only then continue classical ML
-
-Suggested next models:
-
--   Random Forest
--   XGBoost
-
-These should be compared against persistence and Ridge using the same
-chronological splits.
-
-### Step 10 --- Then integrate graph work
-
-Review `Nirika-work` and reconcile graph station/time assumptions with
-the finalized preprocessing pipeline.
+After the fair Ridge interpretation is documented, decide whether to
+continue with a tuned linear baseline or introduce a tree-based baseline.
+Do not start Random Forest, XGBoost, GRU, GNN, or graph integration
+without that explicit decision.
 
 ------------------------------------------------------------------------
 
@@ -873,8 +822,9 @@ pressure
 dew_point
 ```
 
-This list should be revisited after timestamp-aware feature engineering
-is finalized.
+This list is the current fair-benchmark feature set. Do not change it
+silently when comparing against the recorded persistence and Ridge
+baselines.
 
 ------------------------------------------------------------------------
 
@@ -883,18 +833,21 @@ is finalized.
 A future chat can safely continue when it can answer these questions
 from the current repository:
 
-1.  Which directory is being used as the source for temporal feature
-    engineering?
-2.  Are all rows exactly hourly?
-3.  If not, how are discontinuities represented?
-4.  How is an exact `t-n hours` lag obtained?
-5.  How are rolling windows prevented from crossing discontinuities?
-6.  How many stations/rows remain after the corrected process?
-7.  Are train/validation/test outputs freshly regenerated?
-8.  Do persistence and Ridge run without relying on accidental stale
-    files?
+1.  Are persistence and Ridge using the same evaluation frame?
+2.  Do `predictions.csv` exports match exactly on station,
+    source_index, timestamp, and target?
+3.  Which metric is being discussed: macro mean, macro median, or
+    pooled?
+4.  How many rows were removed by the required-feature evaluation
+    frame?
+5.  Is Ridge still `Ridge(alpha=10.0)` or has validation-based tuning
+    been introduced?
+6.  Has the feature set changed from `MODEL_FEATURE_COLUMNS`?
+7.  Are generated outputs freshly regenerated after any code or
+    preprocessing change?
+8.  Are low-variance station R2 values being interpreted carefully?
 
-Until these are resolved, do not interpret advanced-model performance as
+Until these are answered, do not interpret advanced-model performance as
 trustworthy.
 
 ------------------------------------------------------------------------
@@ -902,7 +855,7 @@ trustworthy.
 **Handover status:** Ready for continuation in the ChatGPT Project.
 
 **Immediate next conversation title suggestion:**\
-`01 — Fix Timestamp-Aware Lag & Rolling Features`
+`01 - Interpret Fair Persistence vs Ridge Baselines`
 
 ------------------------------------------------------------------------
 
@@ -948,29 +901,26 @@ Known-problem stations were re-tested:
 - Embassy Kathmandu raw `/hours` includes both `:00` and `:45` interval alignments, but the canonical file has zero duplicate timestamps.
 - Phora Durbar Kathman raw `/hours` includes both `:00` and `:45` interval alignments, but the canonical file has zero duplicate timestamps.
 
-Not yet implemented:
+Superseded by Section 26:
 
-- `DataMerger` has not been switched to `AIR_QUALITY_HOURLY_DIR`.
-- The old downstream `.dt.floor("h")` behavior in `scripts/preprocessing/merger.py` has not been removed yet.
-- `scripts/04_profile_dataset.py` has not been migrated to canonical hourly AQ coverage yet.
-- `scripts/run_pipeline.py` does not yet include the new `02b`, `02c`, or `02d` stages.
-- Trimmed, featured, prepared, split, and model outputs have not been regenerated from the canonical hourly AQ layer.
-- Baselines and advanced models have not been rerun after this temporal AQ change.
+- `DataMerger` has since been switched to `AIR_QUALITY_HOURLY_DIR`.
+- The old downstream AQ timestamp `.floor("h")` merge behavior has
+  since been removed.
+- `scripts/04_profile_dataset.py` has since been migrated to canonical
+  hourly AQ coverage.
+- `scripts/run_pipeline.py` now documents the canonical hourly modeling
+  pipeline.
+- Trimmed, featured, prepared, split, and baseline outputs have since
+  been regenerated from the canonical hourly AQ layer.
 
 Separate follow-up issue:
 
 - The existing raw `/measurements` helper `fetch_all_measurements()` still uses `limit=1000` without pagination. This was intentionally not fixed in the hourly-layer milestone because the old raw `/measurements` archive remains separate from the new `/hours` implementation.
 
-Expected next step:
+That downstream migration is no longer the expected next step.
 
-``` text
-migrate DataMerger and profiling to the validated canonical hourly AQ dataset,
-remove downstream timestamp flooring,
-regenerate dependent processed outputs,
-and rerun temporal validation.
-```
-
-**Handover status:** Hourly OpenAQ AQ layer implemented and validated; downstream merger migration is the next task.
+**Handover status:** Hourly OpenAQ AQ layer implemented and validated;
+downstream merger migration has since been completed in Section 26.
 
 ------------------------------------------------------------------------
 
@@ -1077,17 +1027,18 @@ datasets with no prepared rows: 3
 prepared datasets skipped for <100 rows: 2
 ```
 
-Regenerated baselines:
+Regenerated baselines after canonical hourly migration:
 
 ``` text
-Persistence: 51 datasets, MAE 5.774, RMSE 8.891, R2 0.699
-Ridge(alpha=10.0): 51 datasets, MAE 9.446, RMSE 12.075, R2 -127.128
+Persistence before fair Ridge-valid row matching: 51 datasets, MAE 5.774, RMSE 8.891, R2 0.699
+Ridge(alpha=10.0): 51 datasets, macro MAE 9.446, macro RMSE 12.075, macro mean R2 -127.128
 Ridge rows after required-feature dropna: 115,725 train, 26,236 test
 ```
 
-These are the new valid canonical-hourly baselines. Do not directly
-compare them numerically with old metrics from the pre-migration
-`datetimeFrom.floor("h")` pipeline.
+Section 27 supersedes the persistence number above for model comparison,
+because persistence now uses the same Ridge-valid test rows. Do not
+directly compare canonical-hourly metrics with old metrics from the
+pre-migration `datetimeFrom.floor("h")` pipeline.
 
 Still separate follow-up:
 
@@ -1095,18 +1046,103 @@ Still separate follow-up:
   This is technical debt for reproducibility of the raw archive, not a
   blocker for the current canonical-hourly modeling pipeline.
 
+Expected next research step is updated in Section 27.
+
+**Handover status:** Downstream preprocessing has been migrated to
+canonical hourly AQ and validated; fair baseline evaluation is recorded
+in Section 27.
+
+------------------------------------------------------------------------
+
+## 27. Implemented Fair Baseline Evaluation Framework
+
+This milestone has now been implemented, verified, documented, and
+benchmarked on `main`.
+
+Implemented:
+
+- `BaseModel.prepare_evaluation_frame()` defines the fair benchmark row
+  mask: `MODEL_FEATURE_COLUMNS + target_pm2_5`.
+- `BaseModel` now preserves row identity through `source_index` and
+  timestamp in `predictions.csv`.
+- `BaseModel` now writes per-station `metrics.csv`, row-level
+  `predictions.csv`, and aggregate `summary.csv`.
+- Persistence now evaluates on the same Ridge-valid rows while keeping
+  the equation `prediction(t + 1) = pm2_5(t)`.
+- Ridge remains `Ridge(alpha=10.0)` with no tuning and no feature-set
+  change.
+
+Matched-row verification:
+
+``` text
+stations compared: 51
+persistence prediction rows: 26,236
+Ridge prediction rows: 26,236
+station/source_index/timestamp/target match: true
+timestamp mismatches: 0
+source-index mismatches: 0
+target max absolute difference: 0.0
+```
+
+Fair persistence summary:
+
+``` text
+datasets: 51
+original test rows: 30,270
+evaluated rows: 26,236
+removed rows: 4,034
+evaluation coverage: 86.67%
+macro MAE: 5.830
+macro RMSE: 8.815
+macro mean R2: 0.692
+macro median R2: 0.763
+pooled MAE: 6.005
+pooled RMSE: 12.083
+pooled R2: 0.820
+negative R2 datasets: 2
+```
+
+Fair Ridge summary:
+
+``` text
+datasets: 51
+original test rows: 30,270
+evaluated rows: 26,236
+removed rows: 4,034
+evaluation coverage: 86.67%
+macro MAE: 9.446
+macro RMSE: 12.075
+macro mean R2: -127.128
+macro median R2: 0.570
+pooled MAE: 9.487
+pooled RMSE: 14.202
+pooled R2: 0.751
+negative R2 datasets: 9
+```
+
+Interpretation:
+
+Persistence remains stronger than the current Ridge baseline under a
+fair row-matched comparison. The one-hour PM2.5 autocorrelation is high,
+so current PM2.5 is a difficult benchmark to beat.
+
+The extreme Ridge macro mean R2 is dominated by Sundarighat (SC-23) -
+GD Labs, where test target variance is extremely small and the test
+distribution is far below the training distribution. Removing that one
+station changes Ridge macro R2 from -127.128 to about 0.341, so macro
+mean R2 must be interpreted carefully.
+
 Expected next research step:
 
 ``` text
-analyze why Ridge underperforms persistence on the canonical hourly data,
-quantify feature-row loss from required-feature dropna,
-then decide whether to improve linear features/regularization or move to
-tree-based baselines.
+use the validation split to investigate whether the linear baseline can
+be improved through explicit regularization/linear-variant choices,
+without changing the feature set or tuning on test data.
 ```
 
 Do not start Random Forest, XGBoost, GRU, GNN, or graph integration
-until this baseline interpretation is reviewed.
+until this fair baseline interpretation is reviewed.
 
-**Handover status:** Downstream preprocessing has been migrated to
-canonical hourly AQ and validated; baseline interpretation is the next
-research step.
+**Handover status:** Fair persistence and Ridge evaluation is now
+implemented and verified; validation-based linear baseline review is the
+next recommended research step.
