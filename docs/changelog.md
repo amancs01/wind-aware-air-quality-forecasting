@@ -2,6 +2,46 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: XGBoost Baseline
+
+### Added
+- Added XGBoost dependency declaration in `requirements.txt`.
+- Added validation-only XGBoost tuning via `16a_tune_xgboost.py` and
+  `analysis/xgboost_validation.py`.
+- Added production XGBoost evaluation via `16_xgboost.py` and
+  `models/xgboost_model.py`.
+- Added frozen XGBoost configuration constants in `config.py`.
+
+### Changed
+- `run_pipeline.py` now runs the frozen XGBoost baseline after Random
+  Forest.
+- XGBoost uses the unchanged `MODEL_FEATURE_COLUMNS`, station-specific
+  training, validation-only early stopping, and the shared fair
+  evaluation frame.
+
+### Verified
+- Environment: Python 3.12.0 and XGBoost 3.4.0.
+- XGBoost validation tuning used train/validation only and selected by
+  pooled validation RMSE.
+- Selected XGBoost: `learning_rate=0.1`, `max_depth=3`,
+  `min_child_weight=5`, `subsample=0.8`, `colsample_bytree=0.8`,
+  `reg_alpha=0.0`, `reg_lambda=1.0`, `n_estimators=1000`,
+  `early_stopping_rounds=50`, `tree_method="hist"`, `random_state=42`,
+  and `n_jobs=1`.
+- Selected XGBoost validation: 25,689 rows, macro RMSE 11.938, macro
+  median R2 0.787, pooled RMSE 12.700, pooled R2 0.881.
+- Selected XGBoost best iteration across validation stations: min 19,
+  median 67, mean 88.78, max 261; no station hit the 1000-tree upper
+  bound.
+- Final held-out test XGBoost: 26,236 rows, macro MAE 7.336, macro RMSE
+  10.257, macro mean R2 -443.742, macro median R2 0.701, pooled MAE
+  7.184, pooled RMSE 12.043, pooled R2 0.821.
+- Test row identity matched persistence, Ridge, and Random Forest
+  exactly on station, source index, timestamp, and target.
+- XGBoost improved pooled test RMSE over persistence by 0.039 (0.33%),
+  but was worse than Random Forest by pooled RMSE, pooled MAE, and pooled
+  R2.
+
 ## Milestone: Random Forest Baseline
 
 ### Added

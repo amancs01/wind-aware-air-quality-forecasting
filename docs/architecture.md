@@ -33,7 +33,7 @@ Persistence Baseline (12)
         ↓
 Validation-Based Linear Model Selection (13a)
         ↓
-Machine Learning Models (13 — Ridge, 15 — Random Forest)
+Machine Learning Models (13 — Ridge, 15 — Random Forest, 16 — XGBoost)
         ↓
 Feature Correlation Analysis (14)
         ↓
@@ -52,7 +52,7 @@ Feature Correlation Analysis (14)
 | Feature Engineering | `08_feature_engineering.py` | Add lag features, rolling statistics, cyclical time encodings, and wind vector (u/v) components |
 | Dataset Preparation | `09_prepare_dataset.py` | Build the final modeling table, including the one-hour-ahead `target_pm2_5` label |
 | Splitting | `10_split_dataset.py`, `11_verify_split.py` | Chronological train / validation / test split per station, with integrity checks |
-| Baseline & Models | `12_persistence_baseline.py`, `13a_tune_ridge.py`, `13_linear_regression.py`, `15a_tune_random_forest.py`, `15_random_forest.py` | Select Ridge and Random Forest configurations on validation data, then evaluate frozen production baselines using the shared fair evaluation frame |
+| Baseline & Models | `12_persistence_baseline.py`, `13a_tune_ridge.py`, `13_linear_regression.py`, `15a_tune_random_forest.py`, `15_random_forest.py`, `16a_tune_xgboost.py`, `16_xgboost.py` | Select Ridge, Random Forest, and XGBoost configurations on validation data, then evaluate frozen production baselines using the shared fair evaluation frame |
 | Analysis | `14_feature_correlation.py` | Compute feature statistics and correlations against the forecasting target |
 
 ## Design Principles
@@ -104,6 +104,15 @@ baseline is `n_estimators=100`, `max_depth=10`,
 `min_samples_leaf=10`, `max_features=1.0`, `random_state=42`, and
 `n_jobs=1`. The tuning script is deliberate analysis work; the normal
 pipeline runs only the frozen `15_random_forest.py` baseline.
+
+XGBoost selection is handled separately by `16a_tune_xgboost.py`. It
+uses train data for fitting and validation data for early stopping and
+configuration selection; test data is not loaded during tuning. The
+current frozen XGBoost baseline uses `learning_rate=0.1`,
+`max_depth=3`, `min_child_weight=5`, `subsample=0.8`,
+`colsample_bytree=0.8`, `reg_alpha=0.0`, `reg_lambda=1.0`,
+`n_estimators=1000`, `early_stopping_rounds=50`, `tree_method="hist"`,
+`random_state=42`, and `n_jobs=1`.
 
 ## Planned Extensions
 

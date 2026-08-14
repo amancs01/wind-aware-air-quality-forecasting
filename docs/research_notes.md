@@ -227,6 +227,130 @@ only 11 of 51 datasets. This means nonlinear interactions helped reduce
 larger squared errors overall, but the improvement is not uniform across
 stations.
 
+## XGBoost Baseline
+
+XGBoost was added to test whether sequential gradient-boosted trees can
+extract more signal from the same existing features than persistence,
+Ridge, and Random Forest. The experiment kept the data, target,
+chronological splits, `MODEL_FEATURE_COLUMNS`, missing-value policy, and
+fair evaluation frame unchanged.
+
+Gradient boosting builds trees one after another. Each new tree tries to
+correct errors left by the current ensemble, so the model can learn
+nonlinear interactions in a more directed way than a bagged Random
+Forest. If boosting continues for too long, validation performance can
+stall or worsen, so XGBoost used validation-based early stopping.
+
+Main parameters:
+
+- `learning_rate`: how strongly each new tree changes predictions.
+  Smaller values learn more gradually and usually need more trees.
+- `max_depth`: maximum complexity of each tree. Deeper trees can model
+  richer interactions but may overfit.
+- `min_child_weight`: controls how easily small specialized branches are
+  created. Larger values make the model more conservative.
+- `subsample`: fraction of training rows available to each tree.
+- `colsample_bytree`: fraction of features available to each tree.
+- `early_stopping_rounds`: stops training when validation RMSE has not
+  improved recently.
+
+Environment:
+
+```text
+Python: 3.12.0
+XGBoost: 3.4.0
+```
+
+Validation grid:
+
+```text
+learning_rate: [0.03, 0.10]
+max_depth: [3, 6]
+min_child_weight: [1, 5]
+fixed: n_estimators=1000, early_stopping_rounds=50, subsample=0.8,
+colsample_bytree=0.8, reg_alpha=0.0, reg_lambda=1.0,
+objective="reg:squarederror", eval_metric="rmse", tree_method="hist",
+random_state=42, n_jobs=1
+```
+
+Selected configuration by pooled validation RMSE:
+
+```text
+learning_rate: 0.1
+max_depth: 3
+min_child_weight: 5
+subsample: 0.8
+colsample_bytree: 0.8
+reg_alpha: 0.0
+reg_lambda: 1.0
+n_estimators: 1000
+early_stopping_rounds: 50
+tree_method: hist
+random_state: 42
+n_jobs: 1
+```
+
+Validation result for selected XGBoost:
+
+```text
+rows: 25,689
+macro MAE: 7.898
+macro RMSE: 11.938
+macro mean R2: 0.729
+macro median R2: 0.787
+pooled MAE: 7.674
+pooled RMSE: 12.700
+pooled R2: 0.881
+```
+
+Best-iteration behavior across validation stations:
+
+```text
+min: 19
+median: 67
+mean: 88.78
+max: 261
+stations hitting n_estimators=1000: 0
+```
+
+Validation comparison:
+
+```text
+Persistence pooled RMSE: 12.300
+Ridge(alpha=1000.0) pooled RMSE: 13.225
+Random Forest pooled RMSE: 12.450
+XGBoost pooled RMSE: 12.700
+```
+
+XGBoost beat persistence by validation RMSE on 25 stations and Random
+Forest on 23 stations, but it did not beat either persistence or Random
+Forest by pooled validation RMSE.
+
+Frozen final test result:
+
+```text
+rows: 26,236
+macro MAE: 7.336
+macro RMSE: 10.257
+macro mean R2: -443.742
+macro median R2: 0.701
+pooled MAE: 7.184
+pooled RMSE: 12.043
+pooled R2: 0.821
+```
+
+On held-out test rows, XGBoost improved pooled RMSE over persistence by
+0.039, or 0.33%, but worsened pooled MAE by 1.179. Compared with Random
+Forest, XGBoost had higher pooled RMSE by 0.391, higher pooled MAE by
+0.628, and lower pooled R2 by 0.011. XGBoost beat persistence by
+station-level test RMSE on 11 of 51 datasets and beat Random Forest on
+18 of 51.
+
+Interpretation: sequential boosting did not provide a meaningful overall
+improvement beyond Random Forest on the current feature set. Its tiny
+pooled RMSE gain over persistence is concentrated and comes with worse
+MAE and station-level heterogeneity.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

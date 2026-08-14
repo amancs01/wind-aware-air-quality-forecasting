@@ -18,7 +18,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | Persistence baseline | ✅ Done |
 | Linear Regression | ✅ Done |
 | Random Forest | Done |
-| XGBoost | ⬜ Not started |
+| XGBoost | Done |
 | LSTM | ⬜ Not started |
 | Transformer | ⬜ Not started |
 | Graph construction (wind-weighted station graph) | ⬜ Not started |
@@ -38,7 +38,6 @@ All models share the same evaluation contract via `models/base_model.py`: load t
 
 ## Next Steps
 
-- XGBoost
 - LSTM
 - Transformer
 - Graph construction from station geography + wind field

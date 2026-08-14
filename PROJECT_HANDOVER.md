@@ -706,7 +706,7 @@ Future ChatGPT sessions should not:
 
 The project has completed the fair reusable baseline evaluation task,
 validation-selected Ridge baseline, and validation-selected Random
-Forest baseline.
+Forest baseline, and validation-selected XGBoost baseline.
 
 The current state is:
 
@@ -719,13 +719,17 @@ The current state is:
 -   production Ridge uses `LINEAR_BASELINE_ALPHA = 1000.0`;
 -   the old `Ridge(alpha=10.0)` result remains historical context;
 -   Random Forest has now been selected using validation data only;
--   production Random Forest uses the frozen constants in `config.py`.
+-   production Random Forest uses the frozen constants in `config.py`;
+-   XGBoost has now been selected using validation data only;
+-   production XGBoost uses the frozen constants in `config.py`.
 
 The fair result is that persistence still outperforms the
 validation-selected Ridge baseline overall. Random Forest improves
-pooled held-out test RMSE over persistence, but persistence still wins
-station-level test RMSE on most datasets. This is a legitimate research
-finding, not an evaluation-row artifact.
+pooled held-out test RMSE over persistence, and XGBoost very slightly
+improves pooled held-out test RMSE over persistence, but Random Forest
+remains the strongest pooled-RMSE model among completed baselines.
+Persistence still wins station-level test RMSE on most datasets. This is
+a legitimate research finding, not an evaluation-row artifact.
 
 ------------------------------------------------------------------------
 
@@ -758,10 +762,11 @@ should be a separate research decision with regenerated metrics.
 
 ### Step 5 --- Continue the classical nonlinear sequence carefully
 
-Random Forest is now complete. The next reasonable classical baseline is
-XGBoost, but it should be its own validation-selected milestone. Do not
-start GRU, GNN, or graph integration inside the classical-baseline
-comparison milestone.
+Random Forest and XGBoost are now complete. The next reasonable
+experiment is not another test-set tweak; consider either a carefully
+defined feature-engineering milestone using validation only, or a
+sequence-model milestone if the thesis scope is ready for that step.
+Do not start GRU, GNN, or graph integration without a separate plan.
 
 ------------------------------------------------------------------------
 
@@ -809,6 +814,8 @@ Test split: 15%
 Linear baseline estimator: Ridge(alpha=1000.0), no scaler
 Random Forest estimator: 100 trees, max_depth=10, min_samples_leaf=10,
 max_features=1.0
+XGBoost estimator: learning_rate=0.1, max_depth=3,
+min_child_weight=5, early_stopping_rounds=50
 ```
 
 Current model feature list:
@@ -853,10 +860,12 @@ from the current repository:
     `Ridge(alpha=1000.0)` configuration?
 6.  Is Random Forest still the frozen validation-selected configuration
     in `config.py`?
-7.  Has the feature set changed from `MODEL_FEATURE_COLUMNS`?
-8.  Are generated outputs freshly regenerated after any code or
+7.  Is XGBoost still the frozen validation-selected configuration in
+    `config.py`?
+8.  Has the feature set changed from `MODEL_FEATURE_COLUMNS`?
+9.  Are generated outputs freshly regenerated after any code or
     preprocessing change?
-9.  Are low-variance station R2 values being interpreted carefully?
+10. Are low-variance station R2 values being interpreted carefully?
 
 Until these are answered, do not interpret advanced-model performance as
 trustworthy.
@@ -866,7 +875,7 @@ trustworthy.
 **Handover status:** Ready for continuation in the ChatGPT Project.
 
 **Immediate next conversation title suggestion:**\
-`01 - Validation-Selected XGBoost Baseline`
+`01 - Decide Next Post-Classical Modeling Experiment`
 
 ------------------------------------------------------------------------
 
@@ -1452,5 +1461,233 @@ testing another nonlinear classical model next, but without changing the
 feature set based on the RF test result.
 
 **Handover status:** Validation-selected Random Forest baseline is
-complete. Next recommended research step: a separate XGBoost milestone
-using the same validation-only selection discipline.
+complete. The XGBoost follow-up has since been completed in Section 30.
+
+------------------------------------------------------------------------
+
+## 30. Implemented Validation-Selected XGBoost Baseline
+
+This milestone has now been implemented, frozen, tested once, documented,
+and pushed on `main`.
+
+Environment:
+
+``` text
+Python: 3.12.0
+XGBoost: 3.4.0
+Dependency: requirements.txt now declares xgboost>=3.4.0
+```
+
+Research question:
+
+``` text
+Can sequential gradient-boosted trees exploit the same PM2.5-history,
+weather, wind, and temporal features more effectively than persistence,
+Ridge, and Random Forest?
+```
+
+Experimental controls:
+
+- Feature set remained exactly `MODEL_FEATURE_COLUMNS`.
+- No precipitation, station IDs, spatial features, missing indicators,
+  or new lag/window features were added.
+- XGBoost native missing-value handling was not used to expand the
+  training/evaluation frame.
+- No preprocessing or graph code was changed.
+- Models remained station-specific.
+- One global XGBoost hyperparameter configuration was selected for all
+  stations.
+- Station-specific `best_iteration` was allowed through early stopping.
+- Test data was not used during hyperparameter selection.
+
+XGBoost design:
+
+- Gradient boosting builds trees sequentially; each new tree tries to
+  correct the current ensemble's remaining error.
+- `learning_rate` controls how strongly each new tree updates the
+  prediction.
+- `max_depth` controls each tree's maximum complexity.
+- `min_child_weight` controls how easily small specialized branches are
+  created.
+- `subsample` uses only part of the training rows per tree to reduce
+  overfitting.
+- `colsample_bytree` uses only part of the features per tree to reduce
+  feature over-reliance.
+- Early stopping stops adding trees when validation RMSE stops
+  improving.
+
+Validation grid:
+
+``` text
+learning_rate: [0.03, 0.10]
+max_depth: [3, 6]
+min_child_weight: [1, 5]
+fixed: subsample=0.8, colsample_bytree=0.8, reg_alpha=0.0,
+reg_lambda=1.0, n_estimators=1000, early_stopping_rounds=50,
+objective="reg:squarederror", eval_metric="rmse", tree_method="hist",
+random_state=42, n_jobs=1
+```
+
+Validation candidates:
+
+``` text
+Persistence: rows 25,689, macro RMSE 11.536, median R2 0.769, pooled RMSE 12.300, pooled R2 0.889
+Ridge(alpha=1000.0): rows 25,689, macro RMSE 12.430, median R2 0.775, pooled RMSE 13.225, pooled R2 0.871
+Random Forest: rows 25,689, macro RMSE 11.901, median R2 0.800, pooled RMSE 12.450, pooled R2 0.886
+XGB lr=0.03 depth=3 child=1: macro RMSE 12.232, median R2 0.788, pooled RMSE 12.904, pooled R2 0.877
+XGB lr=0.03 depth=3 child=5: macro RMSE 12.052, median R2 0.786, pooled RMSE 12.725, pooled R2 0.881
+XGB lr=0.03 depth=6 child=1: macro RMSE 13.275, median R2 0.737, pooled RMSE 14.150, pooled R2 0.853
+XGB lr=0.03 depth=6 child=5: macro RMSE 12.657, median R2 0.761, pooled RMSE 13.481, pooled R2 0.866
+XGB lr=0.10 depth=3 child=1: macro RMSE 12.079, median R2 0.782, pooled RMSE 12.839, pooled R2 0.879
+XGB lr=0.10 depth=3 child=5: macro RMSE 11.938, median R2 0.787, pooled RMSE 12.700, pooled R2 0.881
+XGB lr=0.10 depth=6 child=1: macro RMSE 13.315, median R2 0.749, pooled RMSE 14.215, pooled R2 0.851
+XGB lr=0.10 depth=6 child=5: macro RMSE 12.756, median R2 0.762, pooled RMSE 13.575, pooled R2 0.864
+```
+
+Selected configuration by pooled validation RMSE:
+
+``` text
+learning_rate = 0.1
+max_depth = 3
+min_child_weight = 5
+subsample = 0.8
+colsample_bytree = 0.8
+reg_alpha = 0.0
+reg_lambda = 1.0
+n_estimators = 1000
+early_stopping_rounds = 50
+objective = "reg:squarederror"
+eval_metric = "rmse"
+tree_method = "hist"
+random_state = 42
+n_jobs = 1
+```
+
+Validation best-iteration behavior:
+
+``` text
+min: 19
+median: 67
+mean: 88.78
+max: 261
+stations hitting n_estimators=1000: 0
+```
+
+Validation comparison:
+
+``` text
+Persistence pooled RMSE: 12.300
+Ridge(alpha=1000.0) pooled RMSE: 13.225
+Random Forest pooled RMSE: 12.450
+selected XGBoost pooled RMSE: 12.700
+```
+
+Selected XGBoost did not beat persistence or Random Forest by pooled
+validation RMSE, but it did beat Ridge.
+
+Validation station-level comparison:
+
+``` text
+XGBoost beats persistence by validation RMSE on 25 datasets
+persistence beats XGBoost by validation RMSE on 26 datasets
+XGBoost beats Random Forest by validation RMSE on 23 datasets
+Random Forest beats XGBoost by validation RMSE on 28 datasets
+```
+
+Largest validation wins for XGBoost over persistence:
+
+``` text
+Gothatar (SC-12) - GD Labs: -5.840 RMSE vs persistence
+Phora Durbar Kathman: -4.078
+Sorakhutte (SC-36)-GD Labs: -3.981
+Dabali, Handigaun: -3.386
+Nakhipot (SC-08) - GD Labs: -2.914
+```
+
+Largest validation losses for XGBoost versus persistence:
+
+``` text
+Farsidol Relocated: +6.181 RMSE vs persistence
+Chovar (SC - 07) - GD Labs: +6.155
+Kadhaghari (SC-42)-GD Labs: +4.804
+Sundarighat (SC-23) - GD Labs: +4.675
+Kritipur Ward 3 (SC-25) - GD Labs: +4.179
+```
+
+Final matched test verification:
+
+``` text
+persistence rows: 26,236
+Ridge rows: 26,236
+Random Forest rows: 26,236
+XGBoost rows: 26,236
+all model key matches against persistence: true
+timestamp mismatches: 0
+source-index mismatches: 0
+target max absolute difference: 0.0
+```
+
+Final held-out test comparison:
+
+``` text
+Persistence: rows 26,236, macro MAE 5.830, macro RMSE 8.815, macro mean R2 0.692, macro median R2 0.763, pooled MAE 6.005, pooled RMSE 12.083, pooled R2 0.820
+Ridge(alpha=1000.0): rows 26,236, macro MAE 7.437, macro RMSE 10.076, macro mean R2 -29.748, macro median R2 0.702, pooled MAE 7.629, pooled RMSE 12.591, pooled R2 0.805
+Random Forest: rows 26,236, macro MAE 6.735, macro RMSE 9.695, macro mean R2 -78.855, macro median R2 0.704, pooled MAE 6.556, pooled RMSE 11.652, pooled R2 0.833
+XGBoost: rows 26,236, macro MAE 7.336, macro RMSE 10.257, macro mean R2 -443.742, macro median R2 0.701, pooled MAE 7.184, pooled RMSE 12.043, pooled R2 0.821
+```
+
+XGBoost relative to persistence on test:
+
+``` text
+pooled RMSE difference (XGB - Persistence): -0.039
+pooled RMSE improvement: 0.33%
+pooled MAE difference (XGB - Persistence): +1.179
+pooled MAE change: -19.63% relative to persistence
+XGBoost beats persistence by test RMSE on 11 datasets
+persistence beats XGBoost by test RMSE on 40 datasets
+```
+
+XGBoost relative to Random Forest on test:
+
+``` text
+pooled RMSE difference (XGB - RF): +0.391
+pooled MAE difference (XGB - RF): +0.628
+pooled R2 difference (XGB - RF): -0.011
+XGBoost beats Random Forest by test RMSE on 18 datasets
+Random Forest beats XGBoost by test RMSE on 33 datasets
+```
+
+Largest test wins for XGBoost over persistence:
+
+``` text
+Phora Durbar Kathman: -10.388 RMSE vs persistence
+CEN-SR-02_ Farsidol Brick Factories: -5.887
+Dhathutole, Handigaun: -3.957
+Pulchowk (SC-44) - GD Labs: -3.091
+Embassy Kathmandu: -1.208
+```
+
+Largest test losses for XGBoost versus persistence:
+
+``` text
+Sundarighat (SC-23) - GD Labs: +17.435 RMSE vs persistence
+Mid Baneshwor (SC-39)-GD Labs: +9.748
+Pulchowk Engineering Campus - ICE Labs: +8.390
+Sorakhutte (SC-36)-GD Labs: +7.163
+Tarakeswor (SC-14)-GD Labs: +6.178
+```
+
+Conclusion:
+
+Sequential gradient boosting did not extract more useful overall signal
+than Random Forest from the current feature set. It barely improves
+pooled test RMSE over persistence, but the gain is only 0.33%, pooled
+MAE is substantially worse, and persistence still wins station-level
+test RMSE on 40 of 51 datasets. Random Forest remains the strongest
+completed model by pooled held-out test RMSE.
+
+**Handover status:** Validation-selected XGBoost baseline is complete.
+Next recommended research step: decide whether to run a validation-only
+feature-engineering milestone or move to a sequence-model baseline. Do
+not modify features based on XGBoost test results without a new
+validation-first experiment.
