@@ -4,6 +4,7 @@ from config import(
 TRAIN_DIR,
 TEST_DIR,
 LINEAR_RESULTS_DIR,
+LINEAR_BASELINE_ALPHA,
 )
 class LinearRegressionModel(BaseModel):
 
@@ -13,7 +14,7 @@ class LinearRegressionModel(BaseModel):
             LINEAR_RESULTS_DIR
         )
 
-        self.model = Ridge(alpha=10.0)
+        self.model = Ridge(alpha=LINEAR_BASELINE_ALPHA)
 
     def fit(self, X_train, y_train):
 

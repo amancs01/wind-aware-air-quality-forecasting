@@ -144,6 +144,8 @@ MODEL_FEATURE_COLUMNS = [
     "temperature", "humidity", "pressure", "dew_point",
 ]
 
+LINEAR_BASELINE_ALPHA = 1000.0
+
 for directory in [
 
     # Reports
