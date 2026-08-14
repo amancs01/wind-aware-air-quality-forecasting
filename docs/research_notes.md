@@ -74,10 +74,12 @@ Current fair benchmark interpretation:
 
 ```text
 Persistence pooled R2: 0.820
-Ridge(alpha=10.0) pooled R2: 0.751
+Original Ridge(alpha=10.0) pooled R2: 0.751
+Validation-selected Ridge(alpha=1000.0) pooled R2: 0.805
 Persistence macro mean R2: 0.692
-Ridge(alpha=10.0) macro mean R2: -127.128
-Ridge(alpha=10.0) macro median R2: 0.570
+Original Ridge(alpha=10.0) macro mean R2: -127.128
+Validation-selected Ridge(alpha=1000.0) macro mean R2: -29.748
+Validation-selected Ridge(alpha=1000.0) macro median R2: 0.702
 ```
 
 The Ridge macro mean is dominated by Sundarighat (SC-23) - GD Labs,
@@ -90,6 +92,51 @@ that every Ridge forecast collapsed.
 Persistence remains the stronger fair benchmark overall. The one-hour
 PM2.5 autocorrelation is high, so a model must add real value beyond
 current PM2.5 to beat persistence.
+
+## Validation-Based Linear Model Selection
+
+The first linear-model selection milestone used train and validation
+splits only. The test split was not used to choose alpha, scaling, or
+model family.
+
+Candidates:
+
+- `LinearRegression()`
+- unscaled `Ridge(alpha)` for `0.001`, `0.01`, `0.1`, `1.0`, `10.0`,
+  `100.0`, and `1000.0`
+- train-fitted `StandardScaler() + Ridge(alpha)` for the same alpha grid
+
+Primary selection metric: pooled validation RMSE.
+
+Validation persistence remained the strongest overall benchmark:
+
+```text
+Persistence pooled RMSE: 12.300
+Persistence pooled R2: 0.889
+```
+
+The best tested linear configuration was:
+
+```text
+Ridge(alpha=1000.0), no scaler
+```
+
+Validation result for the selected linear model:
+
+```text
+macro MAE: 8.677
+macro RMSE: 12.430
+macro mean R2: 0.664
+macro median R2: 0.775
+pooled MAE: 8.575
+pooled RMSE: 13.225
+pooled R2: 0.871
+```
+
+It beat persistence by validation RMSE on 17 stations; persistence beat
+it on 34 stations. After freezing that configuration, final test
+evaluation reported pooled RMSE 12.591 and pooled R2 0.805, still below
+test persistence at pooled RMSE 12.083 and pooled R2 0.820.
 
 ## Data Quality Decisions
 

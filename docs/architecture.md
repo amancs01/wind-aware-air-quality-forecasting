@@ -31,6 +31,8 @@ Verify Split (11)
         ↓
 Persistence Baseline (12)
         ↓
+Validation-Based Linear Model Selection (13a)
+        ↓
 Machine Learning Models (13 — Linear Regression, ...)
         ↓
 Feature Correlation Analysis (14)
@@ -50,7 +52,7 @@ Feature Correlation Analysis (14)
 | Feature Engineering | `08_feature_engineering.py` | Add lag features, rolling statistics, cyclical time encodings, and wind vector (u/v) components |
 | Dataset Preparation | `09_prepare_dataset.py` | Build the final modeling table, including the one-hour-ahead `target_pm2_5` label |
 | Splitting | `10_split_dataset.py`, `11_verify_split.py` | Chronological train / validation / test split per station, with integrity checks |
-| Baseline & Models | `12_persistence_baseline.py`, `13_linear_regression.py` | Evaluate a naive persistence baseline and a Ridge regression model using a shared evaluation frame and MAE / RMSE / R2 metrics |
+| Baseline & Models | `12_persistence_baseline.py`, `13a_tune_ridge.py`, `13_linear_regression.py` | Select the linear baseline on validation data, then evaluate persistence and Ridge using a shared evaluation frame and MAE / RMSE / R2 metrics |
 | Analysis | `14_feature_correlation.py` | Compute feature statistics and correlations against the forecasting target |
 
 ## Design Principles
@@ -87,6 +89,12 @@ Macro metrics average station-level metrics equally. Pooled metrics are
 computed across all evaluated prediction rows. The simple mean of
 per-station R2 values is not a global R2 and can be dominated by
 low-variance stations.
+
+Linear-model selection is handled separately by `13a_tune_ridge.py`.
+That script uses train and validation splits only, writes
+`validation_tuning.csv`, and selects one global linear configuration by
+pooled validation RMSE before final test evaluation. The current frozen
+linear baseline is unscaled `Ridge(alpha=1000.0)`.
 
 ## Planned Extensions
 

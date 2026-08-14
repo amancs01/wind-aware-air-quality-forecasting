@@ -2,6 +2,38 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Validation-Selected Linear Baseline
+
+### Added
+- Added `13a_tune_ridge.py` for train-to-validation linear model
+  selection without loading the test split.
+- Added reusable validation tuning support for persistence,
+  `LinearRegression()`, unscaled Ridge, and train-fitted
+  `StandardScaler() + Ridge`.
+- Added `LINEAR_BASELINE_ALPHA = 1000.0` as the frozen production linear
+  baseline configuration.
+
+### Changed
+- Production `LinearRegressionModel` now uses unscaled
+  `Ridge(alpha=1000.0)`, selected by pooled validation RMSE.
+- The original fixed `Ridge(alpha=10.0)` result is retained as
+  historical untuned baseline context.
+
+### Verified
+- Validation candidate rows: 25,689 across 51 stations.
+- Validation persistence: macro RMSE 11.536, macro median R2 0.769,
+  pooled RMSE 12.300, pooled R2 0.889.
+- Best linear validation candidate: unscaled `Ridge(alpha=1000.0)`,
+  macro RMSE 12.430, macro median R2 0.775, pooled RMSE 13.225,
+  pooled R2 0.871.
+- Selected Ridge beat persistence by validation RMSE on 17 stations;
+  persistence won on 34 stations.
+- Frozen final test selected Ridge: 26,236 rows, macro MAE 7.437,
+  macro RMSE 10.076, macro mean R2 -29.748, macro median R2 0.702,
+  pooled MAE 7.629, pooled RMSE 12.591, pooled R2 0.805.
+- Test persistence remained stronger overall: pooled RMSE 12.083 and
+  pooled R2 0.820.
+
 ## Milestone: Fair Baseline Evaluation
 
 ### Changed

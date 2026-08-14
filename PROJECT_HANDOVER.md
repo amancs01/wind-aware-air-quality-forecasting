@@ -458,12 +458,14 @@ The class is named `LinearRegressionModel`, but the actual estimator in
 the current snapshot is:
 
 ``` python
-Ridge(alpha=10.0)
+Ridge(alpha=LINEAR_BASELINE_ALPHA)
 ```
 
-So future documentation should call this a **Ridge regression baseline**
-unless the estimator is changed back to ordinary least-squares linear
-regression.
+`LINEAR_BASELINE_ALPHA = 1000.0`, selected using validation pooled RMSE
+after comparing ordinary least squares, unscaled Ridge, and standardized
+Ridge candidates. Future documentation should call this the
+**validation-selected Ridge regression baseline** unless the estimator is
+changed back to ordinary least-squares linear regression.
 
 ### Metrics
 
@@ -713,12 +715,13 @@ The current state is:
 -   persistence and Ridge are now evaluated on identical test rows;
 -   row-level prediction exports confirm exact station/source-index/
     timestamp/target matches between baselines;
--   Ridge remains `Ridge(alpha=10.0)` and has not been tuned;
--   validation data has not yet been used for hyperparameter selection.
+-   Ridge has now been selected using validation data only;
+-   production Ridge uses `LINEAR_BASELINE_ALPHA = 1000.0`;
+-   the old `Ridge(alpha=10.0)` result remains historical context.
 
-The fair result is that persistence still outperforms the current Ridge
-baseline overall. This is a legitimate research finding, not an
-evaluation-row artifact.
+The fair result is that persistence still outperforms the
+validation-selected Ridge baseline overall. This is a legitimate
+research finding, not an evaluation-row artifact.
 
 ------------------------------------------------------------------------
 
@@ -738,11 +741,11 @@ Use the existing fair results to explain where Ridge fails:
 -   station-level distribution shifts can hurt Ridge;
 -   macro mean R2 is sensitive to low-variance stations.
 
-### Step 3 --- Use validation data before changing conclusions
+### Step 3 --- Preserve the frozen validation-selected linear result
 
-If the linear baseline is improved, use the validation split to tune
-regularization or compare simple linear variants. Do not tune on the
-test split.
+The selected linear configuration is unscaled `Ridge(alpha=1000.0)`.
+Do not change it based on test performance. Any future linear-model
+experiment should be a new documented milestone.
 
 ### Step 4 --- Keep feature changes explicit
 
@@ -751,10 +754,10 @@ should be a separate research decision with regenerated metrics.
 
 ### Step 5 --- Only then consider the next baseline family
 
-After the fair Ridge interpretation is documented, decide whether to
-continue with a tuned linear baseline or introduce a tree-based baseline.
+After the validation-selected Ridge result is documented, the next
+reasonable research step is to introduce nonlinear classical baselines.
 Do not start Random Forest, XGBoost, GRU, GNN, or graph integration
-without that explicit decision.
+inside the linear-baseline selection milestone.
 
 ------------------------------------------------------------------------
 
@@ -799,7 +802,7 @@ Minimum prepared rows for splitting: 100
 Train split: 70%
 Validation split: 15%
 Test split: 15%
-Linear baseline estimator: Ridge(alpha=10.0)
+Linear baseline estimator: Ridge(alpha=1000.0), no scaler
 ```
 
 Current model feature list:
@@ -840,8 +843,8 @@ from the current repository:
     pooled?
 4.  How many rows were removed by the required-feature evaluation
     frame?
-5.  Is Ridge still `Ridge(alpha=10.0)` or has validation-based tuning
-    been introduced?
+5.  Is Ridge still the frozen validation-selected
+    `Ridge(alpha=1000.0)` configuration?
 6.  Has the feature set changed from `MODEL_FEATURE_COLUMNS`?
 7.  Are generated outputs freshly regenerated after any code or
     preprocessing change?
@@ -1146,3 +1149,116 @@ until this fair baseline interpretation is reviewed.
 **Handover status:** Fair persistence and Ridge evaluation is now
 implemented and verified; validation-based linear baseline review is the
 next recommended research step.
+
+------------------------------------------------------------------------
+
+## 28. Implemented Validation-Selected Linear Baseline
+
+This milestone has now been implemented, frozen, tested once, documented,
+and pushed on `main`.
+
+Validation-only model selection:
+
+- Split used for selection: train -> validation.
+- Test split was not used while choosing alpha, scaling, or model
+  family.
+- Primary selection metric: pooled validation RMSE.
+- Feature set: unchanged `MODEL_FEATURE_COLUMNS`.
+- Missing lag/rolling values: not imputed.
+- Global configuration selected for all station-specific models, not a
+  separate alpha per station.
+
+Validation candidates:
+
+``` text
+Persistence: rows 25,689, macro RMSE 11.536, median R2 0.769, pooled RMSE 12.300, pooled R2 0.889
+LinearRegression: rows 25,689, macro RMSE 14.359, median R2 0.746, pooled RMSE 14.885, pooled R2 0.837
+Ridge none alpha=0.001: pooled RMSE 14.885, pooled R2 0.837
+Ridge none alpha=0.01: pooled RMSE 14.884, pooled R2 0.837
+Ridge none alpha=0.1: pooled RMSE 14.880, pooled R2 0.837
+Ridge none alpha=1.0: pooled RMSE 14.843, pooled R2 0.838
+Ridge none alpha=10.0: pooled RMSE 14.591, pooled R2 0.843
+Ridge none alpha=100.0: pooled RMSE 13.939, pooled R2 0.857
+Ridge none alpha=1000.0: pooled RMSE 13.225, pooled R2 0.871
+Ridge standard alpha=0.001: pooled RMSE 14.885, pooled R2 0.837
+Ridge standard alpha=0.01: pooled RMSE 14.885, pooled R2 0.837
+Ridge standard alpha=0.1: pooled RMSE 14.883, pooled R2 0.837
+Ridge standard alpha=1.0: pooled RMSE 14.872, pooled R2 0.837
+Ridge standard alpha=10.0: pooled RMSE 14.850, pooled R2 0.838
+Ridge standard alpha=100.0: pooled RMSE 15.128, pooled R2 0.832
+Ridge standard alpha=1000.0: pooled RMSE 17.783, pooled R2 0.767
+```
+
+Selected configuration:
+
+``` text
+Ridge(alpha=1000.0), no scaler
+```
+
+Reason:
+
+Among linear candidates, unscaled `Ridge(alpha=1000.0)` had the lowest
+pooled validation RMSE. It did not beat persistence overall on
+validation, but it was the strongest tested linear configuration.
+
+Validation station consistency:
+
+``` text
+selected Ridge beats persistence by validation RMSE on 17 datasets
+persistence beats selected Ridge by validation RMSE on 34 datasets
+```
+
+Largest validation wins for selected Ridge:
+
+``` text
+Sorakhutte (SC-36)-GD Labs: -3.165 RMSE vs persistence
+Pulchowk (SC-44) - GD Labs: -2.536
+Phora Durbar Kathman: -2.446
+Gokarneshwor (SC-13) - GD Labs: -2.413
+Gothatar (SC-12) - GD Labs: -2.158
+```
+
+Largest validation losses for selected Ridge:
+
+``` text
+Kritipur Ward 3 (SC-25) - GD Labs: +8.852 RMSE vs persistence
+Haugal Ganesh Temple, Patan Durbar Square: +8.338
+Sifal(SC-03)- GD Labs: +5.651
+Teku Ward 12 (SC - 20) - GD Labs: +5.276
+Sundarighat (SC-23) - GD Labs: +4.946
+```
+
+Frozen final test result:
+
+``` text
+selected Ridge test rows: 26,236
+macro MAE: 7.437
+macro RMSE: 10.076
+macro mean R2: -29.748
+macro median R2: 0.702
+pooled MAE: 7.629
+pooled RMSE: 12.591
+pooled R2: 0.805
+negative R2 datasets: 4
+```
+
+Fair test comparison:
+
+``` text
+Persistence pooled RMSE: 12.083
+selected Ridge pooled RMSE: 12.591
+Persistence pooled R2: 0.820
+selected Ridge pooled R2: 0.805
+```
+
+Conclusion:
+
+Validation-based Ridge selection improved the original untuned
+`Ridge(alpha=10.0)` baseline, but the final selected linear model still
+does not beat persistence on validation or test overall. This supports
+moving next to nonlinear classical baselines after documenting this
+linear-baseline result.
+
+**Handover status:** Validation-selected linear baseline is complete.
+Next recommended research step: nonlinear classical baselines, starting
+with a clearly scoped Random Forest or XGBoost milestone.
