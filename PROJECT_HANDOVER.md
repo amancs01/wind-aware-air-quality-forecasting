@@ -1735,3 +1735,224 @@ Next recommended research step: decide whether to run a validation-only
 feature-engineering milestone or move to a sequence-model baseline. Do
 not modify features based on XGBoost test results without a new
 validation-first experiment.
+
+------------------------------------------------------------------------
+
+## 31. Validation-Only Feature Ablation Study
+
+This milestone has now been implemented, run once, documented, and
+pushed on `main`.
+
+Purpose:
+
+``` text
+Identify which existing feature groups contribute validation signal,
+especially whether physical wind components add predictive information
+beyond local PM2.5 history, time, and ordinary meteorology.
+```
+
+Important controls:
+
+-   Train and validation splits only.
+-   The test split was not loaded or used.
+-   Production `MODEL_FEATURE_COLUMNS` was not changed.
+-   Random Forest hyperparameters were not retuned.
+-   The frozen Random Forest configuration was used:
+    `n_estimators=100`, `max_depth=10`, `min_samples_leaf=10`,
+    `max_features=1.0`, `random_state=42`, `n_jobs=1`.
+-   Every ablation used the same full-feature-valid train/validation
+    rows to avoid confounding feature contribution with data
+    availability.
+
+Actual current `MODEL_FEATURE_COLUMNS`:
+
+``` text
+pm2_5
+lag_6
+lag_24
+rolling_mean_6
+rolling_std_6
+hour_sin
+hour_cos
+month_sin
+month_cos
+wind_u
+wind_v
+temperature
+humidity
+pressure
+dew_point
+```
+
+Feature groups:
+
+``` text
+A0 Persistence:
+    prediction = pm2_5
+
+A1 Current PM only:
+    pm2_5
+
+A2 PM history:
+    pm2_5, lag_6, lag_24, rolling_mean_6, rolling_std_6
+
+A3 PM history + time:
+    A2 + hour_sin, hour_cos, month_sin, month_cos
+
+A4 PM history + time + non-wind weather:
+    A3 + temperature, humidity, pressure, dew_point
+
+A5 PM history + time + wind:
+    A3 + wind_u, wind_v
+
+A6 Full current feature set:
+    A3 + weather + wind
+```
+
+Fixed frame verification:
+
+``` text
+datasets: 51
+train rows: 115,725
+validation rows: 25,689
+train-row mismatching stations across variants: 0
+validation-row mismatching stations across variants: 0
+validation-target mismatching stations across variants: 0
+```
+
+Validation results:
+
+``` text
+Persistence: rows 25,689, macro MAE 7.403, macro RMSE 11.536, macro mean R2 0.755, macro median R2 0.769, pooled MAE 7.292, pooled RMSE 12.300, pooled R2 0.889
+A1 Current PM only RF: rows 25,689, macro MAE 8.472, macro RMSE 12.787, macro mean R2 0.690, macro median R2 0.768, pooled MAE 8.311, pooled RMSE 13.453, pooled R2 0.867
+A2 PM history RF: rows 25,689, macro MAE 8.480, macro RMSE 12.774, macro mean R2 0.687, macro median R2 0.766, pooled MAE 8.303, pooled RMSE 13.407, pooled R2 0.868
+A3 PM history + time RF: rows 25,689, macro MAE 7.835, macro RMSE 11.965, macro mean R2 0.717, macro median R2 0.791, pooled MAE 7.586, pooled RMSE 12.499, pooled R2 0.885
+A4 Full minus wind RF: rows 25,689, macro MAE 7.700, macro RMSE 11.950, macro mean R2 0.726, macro median R2 0.788, pooled MAE 7.402, pooled RMSE 12.497, pooled R2 0.885
+A5 History + time + wind RF: rows 25,689, macro MAE 7.784, macro RMSE 11.912, macro mean R2 0.717, macro median R2 0.803, pooled MAE 7.498, pooled RMSE 12.426, pooled R2 0.886
+A6 Full RF: rows 25,689, macro MAE 7.674, macro RMSE 11.900, macro mean R2 0.727, macro median R2 0.800, pooled MAE 7.369, pooled RMSE 12.449, pooled R2 0.886
+```
+
+Incremental comparisons use:
+
+``` text
+positive improvement = lower error after adding features
+```
+
+Findings:
+
+``` text
+Historical PM contribution, A2 - A1:
+    pooled RMSE improvement +0.046 (+0.34%)
+
+Time contribution, A3 - A2:
+    pooled RMSE improvement +0.908 (+6.78%)
+
+Non-wind weather contribution, A4 - A3:
+    pooled RMSE improvement +0.002 (+0.01%)
+
+Wind without other weather, A5 - A3:
+    pooled RMSE improvement +0.073 (+0.58%)
+
+Conditional wind contribution, A6 - A4:
+    pooled RMSE improvement +0.048 (+0.38%)
+
+Conditional non-wind weather contribution, A6 - A5:
+    pooled RMSE improvement -0.023 (-0.18%)
+```
+
+Primary wind-specific result:
+
+``` text
+A4 full-minus-wind pooled RMSE: 12.497
+A6 full pooled RMSE: 12.449
+conditional wind pooled RMSE improvement: +0.048
+A4 pooled MAE: 7.402
+A6 pooled MAE: 7.369
+A4 pooled R2: 0.885
+A6 pooled R2: 0.886
+A4 macro RMSE: 11.950
+A6 macro RMSE: 11.900
+```
+
+Station-level wind result:
+
+``` text
+wind improved RMSE: 24 stations
+wind worsened RMSE: 27 stations
+ties: 0 stations
+median station wind RMSE improvement: -0.011
+```
+
+Largest validation wind wins:
+
+``` text
+Farsidol Relocated: +1.705 RMSE
+Sitapaila (SC-30) - GD Labs: +0.392
+Tarakeswor (SC-14)-GD Labs: +0.355
+Sanepa (SC - 22) - GD Labs: +0.355
+Gaushala Chowk (SC-01) - GD Labs: +0.339
+Chovar (SC - 07) - GD Labs: +0.274
+Baluwatar (SC-02) - GD Labs: +0.264
+Tokha (SC - 32) - GD Labs: +0.253
+Gokarneshwor (SC-13) - GD Labs: +0.214
+Mid Baneshwor (SC-39)-GD Labs: +0.202
+```
+
+Largest validation wind losses:
+
+``` text
+Tankeshwor (SC- 18) - GD Labs: -0.463 RMSE
+Balkumari(SC-28)- GD Labs: -0.452
+Teku Ward 12 (SC - 20) - GD Labs: -0.377
+Ramkot (SC - 10) - GD Labs: -0.299
+Sundarighat (SC-23) - GD Labs: -0.184
+Tyanglaphat (SC - 21) - GD Labs: -0.179
+Ranibari (SC-43)-GD Labs: -0.178
+Imadol(SC-27)- GD Labs: -0.099
+Kaushaltar (SC - 33) GD labs: -0.086
+Jadibuti (SC-35)-GD Labs: -0.074
+```
+
+Interpretation:
+
+-   Persistence remains the best pooled validation RMSE benchmark.
+-   Random Forest using only current PM2.5 is not equivalent to
+    persistence and performs worse than persistence.
+-   PM2.5 history adds only a small pooled validation improvement beyond
+    current PM2.5.
+-   Cyclical time features provide the largest incremental validation
+    gain.
+-   Non-wind weather adds almost no pooled RMSE value after PM history
+    and time, though it improves pooled MAE.
+-   Wind features add a small positive pooled validation signal after
+    PM history, time, and ordinary weather, but the benefit is
+    heterogeneous and not station-wide.
+-   This is predictive evidence, not causal evidence.
+
+Methodological warning:
+
+The existing held-out test split has already been observed during
+Ridge, Random Forest, XGBoost, and wind-semantics correction milestones.
+Do not use this validation ablation to select a new production feature
+subset and then claim the existing test split is a fresh independent
+confirmation. If the feature set changes materially later, choose the
+evaluation strategy deliberately, such as retaining the full features
+for interpretability, using rolling-origin validation, or creating a
+fresh chronological holdout.
+
+Generated outputs:
+
+``` text
+results/feature_analysis/ablation/ablation_summary.csv
+results/feature_analysis/ablation/ablation_station_metrics.csv
+results/feature_analysis/ablation/ablation_comparisons.csv
+results/feature_analysis/ablation/wind_station_comparison.csv
+results/feature_analysis/ablation/row_identity.csv
+results/feature_analysis/ablation/feature_groups.csv
+```
+
+**Handover status:** Validation-only feature ablation is complete.
+Recommended next step: investigate richer temporal modeling and/or
+wind-spatial interactions using validation-first methodology. Do not
+change production features or use the existing test split as fresh
+confirmation without a deliberate evaluation design.

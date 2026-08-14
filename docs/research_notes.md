@@ -385,6 +385,100 @@ Do not compare raw meteorological wind direction directly to a
 source-to-target bearing unless deliberately modeling the upwind
 direction.
 
+## Validation-Only Feature Ablation
+
+This milestone used train and validation data only. The test split was
+not loaded, scored, or used for feature selection. The purpose was to
+understand predictive signal from already-established feature groups,
+not to improve or replace the production test benchmark.
+
+The ablation used the frozen Random Forest configuration:
+
+```text
+n_estimators: 100
+max_depth: 10
+min_samples_leaf: 10
+max_features: 1.0
+random_state: 42
+n_jobs: 1
+```
+
+Every ablation variant used the same full-feature-valid frames:
+
+```text
+datasets: 51
+train rows: 115,725
+validation rows: 25,689
+row/target mismatches across variants: 0
+```
+
+Feature groups:
+
+```text
+A0 Persistence: pm2_5 prediction rule only
+A1 Current PM only: pm2_5
+A2 PM history: pm2_5, lag_6, lag_24, rolling_mean_6, rolling_std_6
+A3 PM history + time: A2 plus hour_sin, hour_cos, month_sin, month_cos
+A4 Full minus wind: A3 plus temperature, humidity, pressure, dew_point
+A5 PM history + time + wind: A3 plus wind_u, wind_v
+A6 Full current feature set: MODEL_FEATURE_COLUMNS
+```
+
+Validation summary:
+
+```text
+Persistence: pooled RMSE 12.300, pooled MAE 7.292, pooled R2 0.889
+A1 current PM RF: pooled RMSE 13.453, pooled MAE 8.311, pooled R2 0.867
+A2 PM history RF: pooled RMSE 13.407, pooled MAE 8.303, pooled R2 0.868
+A3 PM history + time RF: pooled RMSE 12.499, pooled MAE 7.586, pooled R2 0.885
+A4 full minus wind RF: pooled RMSE 12.497, pooled MAE 7.402, pooled R2 0.885
+A5 history + time + wind RF: pooled RMSE 12.426, pooled MAE 7.498, pooled R2 0.886
+A6 full RF: pooled RMSE 12.449, pooled MAE 7.369, pooled R2 0.886
+```
+
+Incremental findings use the sign convention:
+
+```text
+positive RMSE improvement = lower validation RMSE after adding features
+```
+
+Key increments:
+
+```text
+PM history over current PM only: +0.046 RMSE
+Time over PM history: +0.908 RMSE
+Non-wind weather over PM history + time: +0.002 RMSE
+Wind over PM history + time: +0.073 RMSE
+Conditional wind over full-minus-wind: +0.048 RMSE
+Conditional non-wind weather over wind model: -0.023 RMSE
+```
+
+Interpretation:
+
+- Current PM2.5 alone remains very strong, and the forced persistence
+  rule beats the learned current-PM-only Random Forest on validation.
+- PM2.5 history adds only a small improvement beyond current PM2.5.
+- Cyclical time features provide the largest incremental validation
+  gain among the tested groups.
+- Non-wind weather adds little pooled RMSE value once PM history and
+  time are present, though it improves pooled MAE.
+- Wind provides a small positive pooled validation signal both without
+  other weather and after non-wind meteorology is already included.
+- The wind effect is heterogeneous: full features improved RMSE over
+  full-minus-wind on 24 stations, worsened it on 27, and had a median
+  station RMSE effect of -0.011.
+
+This supports cautious thesis wording: there is validation evidence that
+physical wind components add some predictive information beyond local
+PM2.5 history, time, and ordinary meteorology in pooled RMSE, but the
+benefit is small and not station-wide. This is not causal evidence and
+should not be used to change the production feature set without a
+deliberate future evaluation design. The existing test split has already
+been observed during prior model milestones, so any material
+feature-set decision should consider rolling-origin evaluation, a fresh
+chronological holdout, or retaining the current full feature set for
+interpretability.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

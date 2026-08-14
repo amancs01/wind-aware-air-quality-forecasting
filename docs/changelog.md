@@ -2,6 +2,42 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Validation Feature Ablation
+
+### Added
+- Added validation-only feature ablation analysis via
+  `17_feature_ablation.py` and `analysis/feature_ablation.py`.
+- Wrote ablation outputs under `results/feature_analysis/ablation/`:
+  summary, station metrics, incremental comparisons, row identity, and
+  wind station comparison files.
+
+### Method
+- Used only train and validation splits; the test split was not loaded.
+- Used the frozen Random Forest configuration:
+  `n_estimators=100`, `max_depth=10`, `min_samples_leaf=10`,
+  `max_features=1.0`, `random_state=42`, `n_jobs=1`.
+- Kept `MODEL_FEATURE_COLUMNS` unchanged.
+- Used one fixed full-feature-valid row mask for every ablation variant:
+  51 datasets, 115,725 training rows, and 25,689 validation rows.
+
+### Findings
+- Persistence remained the strongest pooled validation RMSE benchmark at
+  12.300.
+- Current-PM-only Random Forest had pooled validation RMSE 13.453, so a
+  nonlinear calibration of current PM2.5 alone did not beat persistence.
+- Adding PM2.5 history to current PM2.5 gave a small pooled RMSE
+  improvement of 0.046.
+- Adding cyclical time features gave the largest incremental pooled
+  RMSE improvement: 0.908.
+- Adding non-wind weather after PM history and time gave almost no
+  pooled RMSE improvement: 0.002, although pooled MAE improved by 0.184.
+- Adding wind without other weather improved pooled RMSE by 0.073.
+- Adding wind after PM history, time, and non-wind weather improved
+  pooled RMSE by 0.048 and pooled MAE by 0.033.
+- Conditional wind benefit was not station-wide: wind improved RMSE on
+  24 stations and worsened it on 27; median station RMSE effect was
+  -0.011.
+
 ## Milestone: XGBoost Baseline
 
 ### Added

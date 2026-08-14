@@ -19,6 +19,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | Linear Regression | ✅ Done |
 | Random Forest | Done |
 | XGBoost | Done |
+| Validation feature ablation | Done |
 | LSTM | ⬜ Not started |
 | Transformer | ⬜ Not started |
 | Graph construction (wind-weighted station graph) | ⬜ Not started |
@@ -38,6 +39,11 @@ All models share the same evaluation contract via `models/base_model.py`: load t
 
 ## Next Steps
 
+- Richer temporal modeling or rolling-origin validation for the strong
+  persistence/time-signal finding
+- Wind/spatial interaction design, using validation evidence only and
+  avoiding premature feature-set changes based on the already-observed
+  test split
 - LSTM
 - Transformer
 - Graph construction from station geography + wind field
