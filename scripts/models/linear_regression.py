@@ -1,7 +1,5 @@
-import pandas as pd
 from sklearn.linear_model import Ridge
 from models.base_model import BaseModel
-from logger import logger
 from config import(
 TRAIN_DIR,
 TEST_DIR,
@@ -38,24 +36,18 @@ class LinearRegressionModel(BaseModel):
         )
         X_train, y_train = self.prepare_features(train_df)
 
-        X_test, y_test = self.prepare_features(test_df)
+        test_evaluation_df = self.prepare_evaluation_frame(test_df)
+        X_test, _ = self.split_features_target(test_evaluation_df)
+
         self.fit(
             X_train,
             y_train,
         )
         predictions = self.predict(X_test)
-        mae, rmse, r2 = self.evaluate(
-            y_test,
+
+        self.record_evaluation(
+            csv_file.stem,
+            len(test_df),
+            test_evaluation_df,
             predictions,
         )
-        self.results.append({
-
-            "station": csv_file.stem,
-
-            "mae": mae,
-
-            "rmse": rmse,
-
-            "r2": r2,
-
-        })
