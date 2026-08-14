@@ -351,6 +351,40 @@ improvement beyond Random Forest on the current feature set. Its tiny
 pooled RMSE gain over persistence is concentrated and comes with worse
 MAE and station-level heterogeneity.
 
+## Wind-Component Semantics Correction
+
+The project now treats `wind_direction` as meteorological direction: the
+direction FROM which wind blows, measured clockwise from north. Feature
+engineering converts this to physical components:
+
+```text
+wind_u = -wind_speed * sin(wind_direction)
+wind_v = -wind_speed * cos(wind_direction)
+```
+
+`wind_u` is eastward, `wind_v` is northward, and all three wind columns
+remain in km/h because the Open-Meteo downloader uses the API default
+wind-speed unit.
+
+The previous `wind_u = speed*cos(direction)` and
+`wind_v = speed*sin(direction)` values were speed-scaled circular
+direction encodings. They preserved the available wind information, so
+the earlier classical baseline results were not meaningless, but the
+columns were physically mislabeled. Correcting the semantics is
+important for interpretation, thesis wording, and future graph edge
+construction.
+
+For future directed pollution-transport reasoning, compare station
+source-to-target bearings with:
+
+```text
+transport_direction = (wind_direction + 180) % 360
+```
+
+Do not compare raw meteorological wind direction directly to a
+source-to-target bearing unless deliberately modeling the upwind
+direction.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

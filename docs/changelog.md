@@ -165,6 +165,27 @@ Notable changes to the project, grouped by milestone. Ongoing "how/why" narrativ
 
 ## Milestone: Data Engineering Pipeline Complete
 
+## Milestone: Wind Component Semantics Correction
+
+### Changed
+- Corrected `wind_u` and `wind_v` feature engineering to use
+  meteorological wind-direction semantics: `wind_direction` is the
+  direction FROM which wind blows, clockwise from north.
+- `wind_u` now represents the physical eastward component and `wind_v`
+  the physical northward component.
+- Wind speed and derived components remain in km/h; raw weather data was
+  not redownloaded or converted to m/s.
+- Updated documentation to distinguish meteorological FROM direction
+  from pollution transport TO direction:
+  `transport_direction = (wind_direction + 180) % 360`.
+
+### Validated
+- Synthetic cardinal sanity cases match the expected physical component
+  signs.
+- Regenerated featured data reconstructs wind speed from
+  `sqrt(wind_u^2 + wind_v^2)` within floating-point tolerance.
+- Ridge, Random Forest, and XGBoost hyperparameters were not retuned.
+
 ### Added
 - Merge pipeline (weather + air quality).
 - Dataset trimming (remove leading rows with no PM2.5 label).

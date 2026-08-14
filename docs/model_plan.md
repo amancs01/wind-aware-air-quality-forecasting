@@ -32,7 +32,7 @@ Models are evaluated in increasing order of complexity so that each one has to b
 1. **Persistence baseline** — `PM2.5(t+1) = PM2.5(t)`. The minimum bar every model must clear.
 2. **Classical ML** (Linear Regression → Random Forest → XGBoost) — tabular models using the engineered features in `MODEL_FEATURE_COLUMNS` (`scripts/config.py`), with no notion of sequence or spatial structure.
 3. **Sequence models** (LSTM → Transformer) — capture temporal dependencies within a single station's history that lag/rolling features can only approximate.
-4. **Wind-aware GAT-GRU** — the target architecture. Stations become graph nodes; edges are weighted by wind direction and speed between station pairs, so the model can learn how pollution is transported between locations rather than treating each station in isolation.
+4. **Wind-aware GAT-GRU** — the target architecture. Stations become graph nodes; edges are weighted by wind direction and speed between station pairs, so the model can learn how pollution is transported between locations rather than treating each station in isolation. Since meteorological wind direction is the direction FROM which wind blows, future directed A-to-B edge alignment should use `transport_direction = (wind_direction + 180) % 360` before comparing with source-to-target bearings.
 
 All models share the same evaluation contract via `models/base_model.py`: load the test split, predict, and report MAE, RMSE, and R2 to per-model `metrics.csv`, `summary.csv`, and `predictions.csv` files. Tuned baselines use validation-only selection before final test evaluation.
 

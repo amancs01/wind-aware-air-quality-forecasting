@@ -49,7 +49,7 @@ Feature Correlation Analysis (14)
 | Validation | `03_validate_data.py` | Check for missing values, duplicate timestamps, and malformed files |
 | Profiling | `04_profile_dataset.py` | Summarize coverage per station (row counts, date ranges, completeness) |
 | Preprocessing | `05_preprocess_data.py`, `06_analyze_merge_data.py`, `07_trim_data.py`, `07b_validate_timestamps.py` | Normalize timestamps, merge weather with air quality, trim leading rows with no PM2.5 label, and re-validate the merged output |
-| Feature Engineering | `08_feature_engineering.py` | Add lag features, rolling statistics, cyclical time encodings, and wind vector (u/v) components |
+| Feature Engineering | `08_feature_engineering.py` | Add lag features, rolling statistics, cyclical time encodings, and physical wind vector (u/v) components |
 | Dataset Preparation | `09_prepare_dataset.py` | Build the final modeling table, including the one-hour-ahead `target_pm2_5` label |
 | Splitting | `10_split_dataset.py`, `11_verify_split.py` | Chronological train / validation / test split per station, with integrity checks |
 | Baseline & Models | `12_persistence_baseline.py`, `13a_tune_ridge.py`, `13_linear_regression.py`, `15a_tune_random_forest.py`, `15_random_forest.py`, `16a_tune_xgboost.py`, `16_xgboost.py` | Select Ridge, Random Forest, and XGBoost configurations on validation data, then evaluate frozen production baselines using the shared fair evaluation frame |
@@ -114,9 +114,24 @@ current frozen XGBoost baseline uses `learning_rate=0.1`,
 `n_estimators=1000`, `early_stopping_rounds=50`, `tree_method="hist"`,
 `random_state=42`, and `n_jobs=1`.
 
+## Wind Feature Semantics
+
+`wind_direction` follows the meteorological convention: it is the
+direction FROM which wind blows, measured clockwise from north.
+`wind_u` is the physical eastward component and `wind_v` is the physical
+northward component:
+
+```text
+wind_u = -wind_speed * sin(wind_direction)
+wind_v = -wind_speed * cos(wind_direction)
+```
+
+The current downloader does not override Open-Meteo's wind-speed unit,
+so `wind_speed`, `wind_u`, and `wind_v` are in km/h.
+
 ## Planned Extensions
 
-- **Graph construction**: Build a station graph where edges are weighted by wind direction/speed between station pairs.
+- **Graph construction**: Build a station graph where edges are weighted by wind direction/speed between station pairs. For directed A-to-B transport alignment, compare the A-to-B bearing with `transport_direction = (wind_direction + 180) % 360`, not raw meteorological wind direction.
 - **GAT-GRU model**: A Graph Attention Network combined with a GRU to capture both spatial (wind-driven) and temporal dependencies.
 - **Explainability**: Extract attention weights and feature attributions to explain individual forecasts.
 - **Serving & dashboard**: Expose trained models through a FastAPI service, visualized in a React dashboard.

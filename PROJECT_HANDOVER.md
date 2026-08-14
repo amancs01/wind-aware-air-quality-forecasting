@@ -314,6 +314,37 @@ current highest-priority task.
 -   `wind_u`
 -   `wind_v`
 
+Current convention after the wind-semantics correction:
+
+-   `wind_direction` is meteorological direction: the direction FROM
+    which wind blows, measured clockwise from north.
+-   `wind_u` is the physical eastward wind component.
+-   `wind_v` is the physical northward wind component.
+-   `wind_speed`, `wind_u`, and `wind_v` are in km/h because the
+    Open-Meteo downloader still uses the API default wind-speed unit.
+
+The corrected component equations are:
+
+``` python
+wind_rad = np.deg2rad(df["wind_direction"])
+wind_u = -wind_speed * np.sin(wind_rad)
+wind_v = -wind_speed * np.cos(wind_rad)
+```
+
+Earlier generated `wind_u`/`wind_v` values used:
+
+``` python
+wind_u = wind_speed * np.cos(wind_rad)
+wind_v = wind_speed * np.sin(wind_rad)
+```
+
+Those earlier values were speed-scaled circular direction encodings, so
+the classical-model experiments were not meaningless: they retained the
+same wind-speed and wind-direction information through an invertible
+swap/sign transform. However, the columns were physically mislabeled.
+The correction is necessary for defensible physical interpretation and
+for future bearing/wind-alignment graph work.
+
 ### Cyclical time encodings
 
 -   `hour_sin`
@@ -661,6 +692,19 @@ Before merging this work:
 -   verify how missing station observations are represented,
 -   verify graph windows respect chronological train/validation/test
     boundaries.
+
+Future directed wind-aware edges must distinguish meteorological FROM
+direction from pollution-transport TO direction. Before comparing wind
+with a source-to-target station bearing, use:
+
+``` text
+transport_direction = (wind_direction + 180) % 360
+```
+
+Do not compare raw `wind_direction` directly to a source-to-target
+bearing unless the equation is explicitly modeling an upwind direction.
+If future graph equations need SI units, consider converting wind speed
+and components to m/s deliberately; do not silently mix units.
 
 ------------------------------------------------------------------------
 
@@ -1642,7 +1686,7 @@ XGBoost relative to persistence on test:
 pooled RMSE difference (XGB - Persistence): -0.039
 pooled RMSE improvement: 0.33%
 pooled MAE difference (XGB - Persistence): +1.179
-pooled MAE change: -19.63% relative to persistence
+pooled MAE change: approximately 19.63% worse than persistence
 XGBoost beats persistence by test RMSE on 11 datasets
 persistence beats XGBoost by test RMSE on 40 datasets
 ```

@@ -14,11 +14,31 @@ The current stage of the project focuses on the data engineering pipeline and cl
 2. **Download** historical hourly weather (Open-Meteo) and PM2.5 measurements (OpenAQ) per station.
 3. **Validate and profile** the raw data to catch missing values, duplicate timestamps, and coverage gaps.
 4. **Merge** weather and air-quality data on aligned timestamps, then **trim** leading periods with no PM2.5 readings.
-5. **Engineer features**: lag features, rolling statistics, cyclical time encodings, and wind vector components.
+5. **Engineer features**: lag features, rolling statistics, cyclical time encodings, and physical wind vector components.
 6. **Split** each station's data into train / validation / test sets and verify the split.
 7. **Train and evaluate** forecasting models — starting with a persistence baseline and linear regression — against a shared set of metrics (MAE, RMSE, R²).
 
 See [`docs/architecture.md`](docs/architecture.md) for the full pipeline diagram.
+
+## Wind Convention
+
+Open-Meteo wind direction is treated as meteorological direction: the
+direction FROM which wind blows, clockwise from north. Feature
+engineering converts it into physical components:
+
+```text
+wind_u = eastward component
+wind_v = northward component
+```
+
+Wind speed and components remain in km/h, matching the current
+Open-Meteo default used by the downloader. Future directed graph edges
+must compare source-to-target station bearings with pollution transport
+direction, not raw meteorological direction:
+
+```text
+transport_direction = (wind_direction + 180) % 360
+```
 
 ## Tech Stack
 
@@ -154,7 +174,7 @@ See [`docs/data_sources.md`](docs/data_sources.md) for details on each data sour
 
 - [x] Data collection (OpenAQ + Open-Meteo)
 - [x] Validation, profiling, merging, trimming
-- [x] Feature engineering (lag, rolling, cyclical, wind vectors)
+- [x] Feature engineering (lag, rolling, cyclical, physical wind vectors)
 - [x] Train / validation / test split
 - [x] Persistence baseline
 - [x] Linear regression baseline

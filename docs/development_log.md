@@ -63,7 +63,7 @@ Completed the full preprocessing pipeline:
 - Feature engineering
 - Dataset preparation
 
-**Engineered features**: time features, lag features, rolling statistics, wind vector components, cyclical time encoding.
+**Engineered features**: time features, lag features, rolling statistics, physical wind vector components, cyclical time encoding.
 
 Prepared datasets were confirmed ready for machine learning.
 
