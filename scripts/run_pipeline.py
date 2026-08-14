@@ -25,6 +25,7 @@ STEPS = [
     "12_persistence_baseline.py",
     "13_linear_regression.py",
     "15_random_forest.py",
+    "16_xgboost.py",
     # "14_feature_correlation.py",
 ]
 
