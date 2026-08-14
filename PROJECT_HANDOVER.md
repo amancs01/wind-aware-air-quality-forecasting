@@ -704,9 +704,9 @@ Future ChatGPT sessions should not:
 
 ## 20. Exact Current Stopping Point
 
-The project has completed the fair reusable baseline evaluation task.
-
-The next task is **not** Random Forest, XGBoost, GRU, or GNN training.
+The project has completed the fair reusable baseline evaluation task,
+validation-selected Ridge baseline, and validation-selected Random
+Forest baseline.
 
 The current state is:
 
@@ -717,11 +717,15 @@ The current state is:
     timestamp/target matches between baselines;
 -   Ridge has now been selected using validation data only;
 -   production Ridge uses `LINEAR_BASELINE_ALPHA = 1000.0`;
--   the old `Ridge(alpha=10.0)` result remains historical context.
+-   the old `Ridge(alpha=10.0)` result remains historical context;
+-   Random Forest has now been selected using validation data only;
+-   production Random Forest uses the frozen constants in `config.py`.
 
 The fair result is that persistence still outperforms the
-validation-selected Ridge baseline overall. This is a legitimate
-research finding, not an evaluation-row artifact.
+validation-selected Ridge baseline overall. Random Forest improves
+pooled held-out test RMSE over persistence, but persistence still wins
+station-level test RMSE on most datasets. This is a legitimate research
+finding, not an evaluation-row artifact.
 
 ------------------------------------------------------------------------
 
@@ -752,12 +756,12 @@ experiment should be a new documented milestone.
 Do not silently add or remove model features. Any feature-set change
 should be a separate research decision with regenerated metrics.
 
-### Step 5 --- Only then consider the next baseline family
+### Step 5 --- Continue the classical nonlinear sequence carefully
 
-After the validation-selected Ridge result is documented, the next
-reasonable research step is to introduce nonlinear classical baselines.
-Do not start Random Forest, XGBoost, GRU, GNN, or graph integration
-inside the linear-baseline selection milestone.
+Random Forest is now complete. The next reasonable classical baseline is
+XGBoost, but it should be its own validation-selected milestone. Do not
+start GRU, GNN, or graph integration inside the classical-baseline
+comparison milestone.
 
 ------------------------------------------------------------------------
 
@@ -803,6 +807,8 @@ Train split: 70%
 Validation split: 15%
 Test split: 15%
 Linear baseline estimator: Ridge(alpha=1000.0), no scaler
+Random Forest estimator: 100 trees, max_depth=10, min_samples_leaf=10,
+max_features=1.0
 ```
 
 Current model feature list:
@@ -845,10 +851,12 @@ from the current repository:
     frame?
 5.  Is Ridge still the frozen validation-selected
     `Ridge(alpha=1000.0)` configuration?
-6.  Has the feature set changed from `MODEL_FEATURE_COLUMNS`?
-7.  Are generated outputs freshly regenerated after any code or
+6.  Is Random Forest still the frozen validation-selected configuration
+    in `config.py`?
+7.  Has the feature set changed from `MODEL_FEATURE_COLUMNS`?
+8.  Are generated outputs freshly regenerated after any code or
     preprocessing change?
-8.  Are low-variance station R2 values being interpreted carefully?
+9.  Are low-variance station R2 values being interpreted carefully?
 
 Until these are answered, do not interpret advanced-model performance as
 trustworthy.
@@ -858,7 +866,7 @@ trustworthy.
 **Handover status:** Ready for continuation in the ChatGPT Project.
 
 **Immediate next conversation title suggestion:**\
-`01 - Interpret Fair Persistence vs Ridge Baselines`
+`01 - Validation-Selected XGBoost Baseline`
 
 ------------------------------------------------------------------------
 
@@ -1072,8 +1080,9 @@ Implemented:
   `predictions.csv`, and aggregate `summary.csv`.
 - Persistence now evaluates on the same Ridge-valid rows while keeping
   the equation `prediction(t + 1) = pm2_5(t)`.
-- Ridge remains `Ridge(alpha=10.0)` with no tuning and no feature-set
-  change.
+- At this milestone, Ridge remained `Ridge(alpha=10.0)` with no tuning
+  and no feature-set change. Section 28 supersedes this as the current
+  production linear baseline.
 
 Matched-row verification:
 
@@ -1143,8 +1152,7 @@ be improved through explicit regularization/linear-variant choices,
 without changing the feature set or tuning on test data.
 ```
 
-Do not start Random Forest, XGBoost, GRU, GNN, or graph integration
-until this fair baseline interpretation is reviewed.
+This next step has since been completed in Section 28.
 
 **Handover status:** Fair persistence and Ridge evaluation is now
 implemented and verified; validation-based linear baseline review is the
@@ -1260,5 +1268,189 @@ moving next to nonlinear classical baselines after documenting this
 linear-baseline result.
 
 **Handover status:** Validation-selected linear baseline is complete.
-Next recommended research step: nonlinear classical baselines, starting
-with a clearly scoped Random Forest or XGBoost milestone.
+Next recommended research step at that time was Random Forest; this has
+since been completed in Section 29.
+
+------------------------------------------------------------------------
+
+## 29. Implemented Validation-Selected Random Forest Baseline
+
+This milestone has now been implemented, frozen, tested once, documented,
+and pushed on `main`.
+
+Research question:
+
+``` text
+Does nonlinear modeling of the same existing information improve
+one-hour-ahead PM2.5 forecasting beyond Persistence and Ridge?
+```
+
+Experimental controls:
+
+- Feature set remained exactly `MODEL_FEATURE_COLUMNS`.
+- No precipitation was added.
+- No PM2.5 lag/rolling imputation was added.
+- No preprocessing or graph code was changed.
+- Models remained station-specific.
+- One global Random Forest configuration was selected for all stations.
+- Test data was not used during hyperparameter selection.
+
+Initial design:
+
+- `n_estimators` controls the number of trees. It was fixed rather than
+  tuned aggressively because this milestone focuses on tree complexity.
+- `max_depth` controls how deep each tree can grow. Shallower trees
+  reduce memorization.
+- `min_samples_leaf` controls how many rows must remain in a terminal
+  leaf. Larger leaves smooth predictions and regularize the model.
+- `max_features` controls how many features are considered at each
+  split. All features can make individual trees stronger; `sqrt` can
+  increase diversity.
+- `random_state=42` makes repeated runs reproducible.
+
+Resource note:
+
+The originally suggested unbounded `max_depth=None` candidates exhausted
+local memory before producing validation metrics, even with fewer trees
+and no worker parallelism. The feasible validation grid therefore used:
+
+``` text
+n_estimators: 100
+n_jobs: 1
+max_depth: [10, 20]
+min_samples_leaf: [1, 5, 10]
+max_features: [1.0, "sqrt"]
+```
+
+Validation candidates:
+
+``` text
+Persistence: rows 25,689, macro RMSE 11.536, median R2 0.769, pooled RMSE 12.300, pooled R2 0.889
+Ridge(alpha=1000.0): rows 25,689, macro RMSE 12.430, median R2 0.775, pooled RMSE 13.225, pooled R2 0.871
+RF depth=10 leaf=1 features=1.0: macro RMSE 12.304, median R2 0.758, pooled RMSE 13.289, pooled R2 0.870
+RF depth=10 leaf=1 features=sqrt: macro RMSE 15.328, median R2 0.672, pooled RMSE 16.152, pooled R2 0.808
+RF depth=10 leaf=5 features=1.0: macro RMSE 11.891, median R2 0.817, pooled RMSE 12.567, pooled R2 0.884
+RF depth=10 leaf=5 features=sqrt: macro RMSE 15.551, median R2 0.681, pooled RMSE 16.412, pooled R2 0.802
+RF depth=10 leaf=10 features=1.0: macro RMSE 11.901, median R2 0.800, pooled RMSE 12.450, pooled R2 0.886
+RF depth=10 leaf=10 features=sqrt: macro RMSE 16.157, median R2 0.647, pooled RMSE 16.985, pooled R2 0.788
+RF depth=20 leaf=1 features=1.0: macro RMSE 12.320, median R2 0.758, pooled RMSE 13.364, pooled R2 0.869
+RF depth=20 leaf=1 features=sqrt: macro RMSE 15.135, median R2 0.678, pooled RMSE 15.950, pooled R2 0.813
+RF depth=20 leaf=5 features=1.0: macro RMSE 11.892, median R2 0.817, pooled RMSE 12.570, pooled R2 0.884
+RF depth=20 leaf=5 features=sqrt: macro RMSE 15.509, median R2 0.671, pooled RMSE 16.336, pooled R2 0.804
+RF depth=20 leaf=10 features=1.0: macro RMSE 11.901, median R2 0.800, pooled RMSE 12.450, pooled R2 0.886
+RF depth=20 leaf=10 features=sqrt: macro RMSE 16.139, median R2 0.660, pooled RMSE 16.954, pooled R2 0.788
+```
+
+Selected configuration by pooled validation RMSE:
+
+``` text
+n_estimators = 100
+max_depth = 10
+min_samples_leaf = 10
+max_features = 1.0
+random_state = 42
+n_jobs = 1
+```
+
+Validation comparison:
+
+``` text
+Persistence pooled RMSE: 12.300
+Ridge(alpha=1000.0) pooled RMSE: 13.225
+selected RF pooled RMSE: 12.450
+```
+
+Selected RF improves over Ridge on validation, but does not beat
+persistence by pooled validation RMSE.
+
+Validation station-level comparison:
+
+``` text
+selected RF beats persistence by validation RMSE on 27 datasets
+persistence beats selected RF by validation RMSE on 24 datasets
+```
+
+Largest validation wins for selected RF:
+
+``` text
+Gothatar (SC-12) - GD Labs: -4.562 RMSE vs persistence
+Dabali, Handigaun: -3.751
+Phora Durbar Kathman: -3.258
+Taudaha (SC - 09) - GD Labs: -2.800
+Dhathutole, Handigaun: -2.346
+```
+
+Largest validation losses for selected RF:
+
+``` text
+Farsidol Relocated: +4.745 RMSE vs persistence
+Haugal Ganesh Temple, Patan Durbar Square: +4.685
+Chovar (SC - 07) - GD Labs: +4.264
+Kritipur Ward 3 (SC-25) - GD Labs: +4.259
+Kadhaghari (SC-42)-GD Labs: +3.714
+```
+
+Final matched test verification:
+
+``` text
+persistence rows: 26,236
+Ridge rows: 26,236
+Random Forest rows: 26,236
+persistence/Ridge key match: true
+persistence/RF key match: true
+Ridge/RF key match: true
+timestamp mismatches: 0
+source-index mismatches: 0
+target max absolute difference: 0.0
+```
+
+Final held-out test comparison:
+
+``` text
+Persistence: rows 26,236, macro MAE 5.830, macro RMSE 8.815, macro mean R2 0.692, macro median R2 0.763, pooled MAE 6.005, pooled RMSE 12.083, pooled R2 0.820
+Ridge(alpha=1000.0): rows 26,236, macro MAE 7.437, macro RMSE 10.076, macro mean R2 -29.748, macro median R2 0.702, pooled MAE 7.629, pooled RMSE 12.591, pooled R2 0.805
+Random Forest: rows 26,236, macro MAE 6.735, macro RMSE 9.695, macro mean R2 -78.855, macro median R2 0.704, pooled MAE 6.556, pooled RMSE 11.652, pooled R2 0.833
+```
+
+Random Forest relative to persistence on test:
+
+``` text
+pooled RMSE difference (RF - Persistence): -0.430
+pooled MAE difference (RF - Persistence): +0.551
+pooled RMSE improvement: 3.56%
+RF beats persistence by test RMSE on 11 datasets
+persistence beats RF by test RMSE on 40 datasets
+```
+
+Largest test wins for selected RF:
+
+``` text
+Phora Durbar Kathman: -7.517 RMSE vs persistence
+CEN-SR-02_ Farsidol Brick Factories: -5.652
+Dhathutole, Handigaun: -3.905
+Embassy Kathmandu: -1.598
+Gaushala Chowk (SC-01) - GD Labs: -1.269
+```
+
+Largest test losses for selected RF:
+
+``` text
+Sundarighat (SC-23) - GD Labs: +7.286 RMSE vs persistence
+Pulchowk Engineering Campus - ICE Labs: +7.096
+Mid Baneshwor (SC-39)-GD Labs: +6.853
+Tarakeswor (SC-14)-GD Labs: +6.154
+Kupondole (SC-40)-GD Labs: +5.044
+```
+
+Conclusion:
+
+Nonlinear Random Forest interactions helped reduce larger squared errors
+overall on held-out test data, giving the first model that beats
+persistence by pooled RMSE. The result is heterogeneous: persistence
+still wins on most stations and has lower pooled MAE. This supports
+testing another nonlinear classical model next, but without changing the
+feature set based on the RF test result.
+
+**Handover status:** Validation-selected Random Forest baseline is
+complete. Next recommended research step: a separate XGBoost milestone
+using the same validation-only selection discipline.

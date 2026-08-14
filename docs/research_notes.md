@@ -138,6 +138,95 @@ it on 34 stations. After freezing that configuration, final test
 evaluation reported pooled RMSE 12.591 and pooled R2 0.805, still below
 test persistence at pooled RMSE 12.083 and pooled R2 0.820.
 
+## Random Forest Baseline
+
+Random Forest was added to test whether nonlinear interactions among the
+same existing PM2.5, lag, rolling, time, wind, and weather features
+improve one-hour-ahead forecasting. No features were added or removed,
+and missing lag/rolling values were not imputed.
+
+The Random Forest model remains station-specific, matching the existing
+model architecture. Each station trains its own forest, while all
+stations share one validation-selected global hyperparameter
+configuration.
+
+Tuned parameters:
+
+- `max_depth`: limits how deep each tree can grow. Smaller values make
+  each tree simpler and reduce memorization.
+- `min_samples_leaf`: requires each terminal leaf to contain at least
+  this many training rows. Larger values smooth predictions and improve
+  regularization.
+- `max_features`: controls how many features each split may consider.
+  Using all features can make individual trees stronger; using `sqrt`
+  can increase tree diversity.
+- `n_estimators`: controls the number of trees. It was fixed rather
+  than tuned aggressively because this milestone focuses on structural
+  complexity.
+
+Resource note: unbounded forests with `max_depth=None` exhausted local
+memory before producing validation metrics, even after reducing worker
+parallelism. The final feasible grid used `n_estimators=100`,
+`n_jobs=1`, `max_depth` in `[10, 20]`, `min_samples_leaf` in
+`[1, 5, 10]`, and `max_features` in `[1.0, "sqrt"]`.
+
+Selected configuration by pooled validation RMSE:
+
+```text
+n_estimators: 100
+max_depth: 10
+min_samples_leaf: 10
+max_features: 1.0
+random_state: 42
+n_jobs: 1
+```
+
+Validation result for selected Random Forest:
+
+```text
+rows: 25,689
+macro MAE: 7.675
+macro RMSE: 11.901
+macro mean R2: 0.727
+macro median R2: 0.800
+pooled MAE: 7.370
+pooled RMSE: 12.450
+pooled R2: 0.886
+```
+
+Validation comparison:
+
+```text
+Persistence pooled RMSE: 12.300
+Ridge(alpha=1000.0) pooled RMSE: 13.225
+Random Forest pooled RMSE: 12.450
+```
+
+Random Forest improved over Ridge on validation, but it did not beat
+persistence overall on pooled validation RMSE. It did beat persistence
+by station-level validation RMSE on 27 datasets, while persistence won
+on 24 datasets.
+
+Frozen final test result:
+
+```text
+rows: 26,236
+macro MAE: 6.735
+macro RMSE: 9.695
+macro mean R2: -78.855
+macro median R2: 0.704
+pooled MAE: 6.556
+pooled RMSE: 11.652
+pooled R2: 0.833
+```
+
+On held-out test rows, Random Forest improved pooled RMSE over
+persistence by 0.430, or 3.56%. However, Random Forest had worse pooled
+MAE than persistence and beat persistence by station-level test RMSE on
+only 11 of 51 datasets. This means nonlinear interactions helped reduce
+larger squared errors overall, but the improvement is not uniform across
+stations.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

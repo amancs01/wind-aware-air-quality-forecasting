@@ -33,7 +33,7 @@ Persistence Baseline (12)
         ↓
 Validation-Based Linear Model Selection (13a)
         ↓
-Machine Learning Models (13 — Linear Regression, ...)
+Machine Learning Models (13 — Ridge, 15 — Random Forest)
         ↓
 Feature Correlation Analysis (14)
         ↓
@@ -52,7 +52,7 @@ Feature Correlation Analysis (14)
 | Feature Engineering | `08_feature_engineering.py` | Add lag features, rolling statistics, cyclical time encodings, and wind vector (u/v) components |
 | Dataset Preparation | `09_prepare_dataset.py` | Build the final modeling table, including the one-hour-ahead `target_pm2_5` label |
 | Splitting | `10_split_dataset.py`, `11_verify_split.py` | Chronological train / validation / test split per station, with integrity checks |
-| Baseline & Models | `12_persistence_baseline.py`, `13a_tune_ridge.py`, `13_linear_regression.py` | Select the linear baseline on validation data, then evaluate persistence and Ridge using a shared evaluation frame and MAE / RMSE / R2 metrics |
+| Baseline & Models | `12_persistence_baseline.py`, `13a_tune_ridge.py`, `13_linear_regression.py`, `15a_tune_random_forest.py`, `15_random_forest.py` | Select Ridge and Random Forest configurations on validation data, then evaluate frozen production baselines using the shared fair evaluation frame |
 | Analysis | `14_feature_correlation.py` | Compute feature statistics and correlations against the forecasting target |
 
 ## Design Principles
@@ -95,6 +95,15 @@ That script uses train and validation splits only, writes
 `validation_tuning.csv`, and selects one global linear configuration by
 pooled validation RMSE before final test evaluation. The current frozen
 linear baseline is unscaled `Ridge(alpha=1000.0)`.
+
+Random Forest selection is handled separately by
+`15a_tune_random_forest.py`. It uses the same train/validation split,
+same `MODEL_FEATURE_COLUMNS`, same required-feature evaluation frame,
+and pooled validation RMSE criterion. The current frozen Random Forest
+baseline is `n_estimators=100`, `max_depth=10`,
+`min_samples_leaf=10`, `max_features=1.0`, `random_state=42`, and
+`n_jobs=1`. The tuning script is deliberate analysis work; the normal
+pipeline runs only the frozen `15_random_forest.py` baseline.
 
 ## Planned Extensions
 

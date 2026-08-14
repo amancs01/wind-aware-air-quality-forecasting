@@ -17,7 +17,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | Reusable `BaseModel` class | ✅ Done |
 | Persistence baseline | ✅ Done |
 | Linear Regression | ✅ Done |
-| Random Forest | ⬜ Not started |
+| Random Forest | Done |
 | XGBoost | ⬜ Not started |
 | LSTM | ⬜ Not started |
 | Transformer | ⬜ Not started |
@@ -34,11 +34,10 @@ Models are evaluated in increasing order of complexity so that each one has to b
 3. **Sequence models** (LSTM → Transformer) — capture temporal dependencies within a single station's history that lag/rolling features can only approximate.
 4. **Wind-aware GAT-GRU** — the target architecture. Stations become graph nodes; edges are weighted by wind direction and speed between station pairs, so the model can learn how pollution is transported between locations rather than treating each station in isolation.
 
-All models share the same evaluation contract via `models/base_model.py`: load the test split, predict, and report MAE, RMSE, and R² to a per-model `results/<model>/metrics.csv`.
+All models share the same evaluation contract via `models/base_model.py`: load the test split, predict, and report MAE, RMSE, and R2 to per-model `metrics.csv`, `summary.csv`, and `predictions.csv` files. Tuned baselines use validation-only selection before final test evaluation.
 
 ## Next Steps
 
-- Random Forest
 - XGBoost
 - LSTM
 - Transformer

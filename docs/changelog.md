@@ -2,6 +2,47 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Random Forest Baseline
+
+### Added
+- Added validation-only Random Forest tuning via
+  `15a_tune_random_forest.py` and
+  `analysis/random_forest_validation.py`.
+- Added production Random Forest evaluation via `15_random_forest.py`
+  and `models/random_forest.py`.
+- Added frozen Random Forest configuration constants in `config.py`.
+
+### Changed
+- `run_pipeline.py` now runs the frozen Random Forest baseline after the
+  frozen Ridge baseline.
+- Random Forest uses the unchanged `MODEL_FEATURE_COLUMNS`, station-
+  specific training, and the shared fair evaluation frame.
+
+### Verified
+- No existing Random Forest implementation was present before this
+  milestone.
+- Validation tuning used train/validation only and selected by pooled
+  validation RMSE.
+- Unbounded `max_depth=None` candidates exhausted local memory, so the
+  feasible grid used `n_estimators=100`, `n_jobs=1`, `max_depth` in
+  `[10, 20]`, `min_samples_leaf` in `[1, 5, 10]`, and `max_features` in
+  `[1.0, "sqrt"]`.
+- Selected Random Forest: `max_depth=10`, `min_samples_leaf=10`,
+  `max_features=1.0`, `n_estimators=100`, `random_state=42`,
+  `n_jobs=1`.
+- Validation selected RF: 25,689 rows, macro RMSE 11.901, macro median
+  R2 0.800, pooled RMSE 12.450, pooled R2 0.886.
+- Validation selected RF beat persistence by station RMSE on 27
+  datasets; persistence won on 24.
+- Final held-out test RF: 26,236 rows, macro MAE 6.735, macro RMSE
+  9.695, macro mean R2 -78.855, macro median R2 0.704, pooled MAE
+  6.556, pooled RMSE 11.652, pooled R2 0.833.
+- Test row identity matched persistence and Ridge exactly on station,
+  source index, timestamp, and target.
+- Random Forest improved pooled test RMSE over persistence by 0.430
+  (3.56%), while persistence still won station-level test RMSE on 40 of
+  51 datasets.
+
 ## Milestone: Validation-Selected Linear Baseline
 
 ### Added
