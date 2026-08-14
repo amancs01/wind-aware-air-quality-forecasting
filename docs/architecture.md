@@ -66,3 +66,23 @@ Feature Correlation Analysis (14)
 - **GAT-GRU model**: A Graph Attention Network combined with a GRU to capture both spatial (wind-driven) and temporal dependencies.
 - **Explainability**: Extract attention weights and feature attributions to explain individual forecasts.
 - **Serving & dashboard**: Expose trained models through a FastAPI service, visualized in a React dashboard.
+
+## Canonical Hourly AQ Migration
+
+The modeling pipeline now uses OpenAQ `/hours` data, not raw
+`/measurements`, for PM2.5 alignment. Raw `/measurements` remains an
+archival/research layer, but canonical modeling rows use
+`data/processed/air_quality_hourly/`.
+
+Canonical PM2.5 timestamp semantics:
+
+```text
+timestamp t = OpenAQ one-hour PM2.5 interval ending at local clock time t
+```
+
+For example, a PM2.5 period `06:00 -> 07:00` is merged with the weather
+row at `07:00`. This replaces the old downstream timestamp flooring,
+which could collapse distinct OpenAQ intervals onto the same hour.
+
+The merge remains weather-left: every weather hour is preserved, and
+missing PM2.5 observations remain explicit `NaN` values.

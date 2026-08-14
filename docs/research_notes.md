@@ -67,3 +67,27 @@ Stations without sufficient PM2.5 observations are excluded from model training 
 | 2 | Shared filesystem utilities belong in `utils.py`, not duplicated per script. |
 | 3 | Network retry logic should be reusable across all API clients, not reimplemented per downloader. |
 | 4 | Networking is centralized inside a reusable HTTP client (`clients/http_client.py`) rather than living in individual scripts. |
+
+## Canonical Hourly PM2.5 Finding
+
+OpenAQ raw `/measurements` timestamps were not safe for modeling when
+downstream code floored `datetimeFrom` to the hour. Some sensors exposed
+multiple sub-hour alignments, which could create duplicate local model
+timestamps.
+
+The current modeling convention is:
+
+```text
+PM2.5(t) = OpenAQ one-hour PM2.5 interval ending at local clock time t
+```
+
+Using OpenAQ `/hours` and selecting intervals where
+`datetimeTo.local.minute == 0` removed the duplicate-timestamp problem in
+the regenerated merge. Timestamp continuity is now separate from PM2.5
+availability: the weather-left timeline is hourly and continuous after
+trimming, but many PM2.5 values are still missing because measurements
+were unavailable.
+
+New baseline metrics from this canonical hourly pipeline are the valid
+baseline going forward. They should not be directly compared with older
+metrics produced from `datetimeFrom.floor("h")` data.

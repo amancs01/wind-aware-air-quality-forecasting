@@ -76,3 +76,32 @@ Notable changes to the project, grouped by milestone. Ongoing "how/why" narrativ
 - Refactored the weather downloader and air quality downloader to use it.
 - Centralized utilities into `utils.py`.
 - Added a reusable HTTP client (`clients/http_client.py`).
+
+## Milestone: Canonical Hourly AQ Downstream Migration
+
+### Changed
+- Profiling now uses canonical hourly OpenAQ `/hours` PM2.5 data instead
+  of raw `/measurements` counts.
+- `station_coverage.csv` now includes `dataset_name`, `station`, and
+  `sensor_id` so duplicate station names do not collapse distinct PM2.5
+  sensors.
+- `DataMerger` now merges weather with canonical hourly AQ from
+  `data/processed/air_quality_hourly/`.
+- AQ timestamp flooring was removed from the merge path.
+- `run_pipeline.py` now documents the canonical hourly preprocessing
+  order and treats raw `/measurements` as an optional archival source.
+
+### Validated
+- 56 canonical AQ datasets were merged with weather-left cardinality.
+- Every merged dataset preserved weather row count and had zero duplicate
+  timestamps.
+- Regenerated trimmed data had zero invalid hourly gaps.
+- Temporal-feature validation reported 100% timestamp correctness for
+  `lag_1`, `lag_3`, `lag_6`, `lag_12`, `lag_24`, `rolling_3`,
+  `rolling_6`, and `rolling_24`.
+
+### Baselines
+- Regenerated Persistence baseline: MAE 5.774, RMSE 8.891, R2 0.699.
+- Regenerated Ridge baseline: MAE 9.446, RMSE 12.075, R2 -127.128.
+- These metrics are the new canonical-hourly baselines and are not
+  directly comparable with older pre-migration metrics.
