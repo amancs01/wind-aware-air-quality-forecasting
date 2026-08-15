@@ -479,6 +479,108 @@ feature-set decision should consider rolling-origin evaluation, a fresh
 chronological holdout, or retaining the current full feature set for
 interpretability.
 
+## Rolling-Origin Validation
+
+Rolling-origin validation was added to check whether conclusions from a
+single validation/test period are stable across multiple chronological
+forecast periods. It uses only the first 85% development portion of each
+prepared station dataset and does not load the final 15% test split.
+
+Folds:
+
+```text
+Fold 1: train 0-55%, validate 55-65%
+Fold 2: train 0-65%, validate 65-75%
+Fold 3: train 0-75%, validate 75-85%
+```
+
+Models were frozen:
+
+```text
+Persistence
+Ridge(alpha=1000)
+Random Forest: n_estimators=100, max_depth=10,
+min_samples_leaf=10, max_features=1.0, random_state=42, n_jobs=1
+```
+
+Each fold used the same full-`MODEL_FEATURE_COLUMNS`-valid rows for all
+models. Two tiny prepared datasets were skipped, leaving 51 datasets in
+each fold.
+
+Validation results:
+
+```text
+Fold 1:
+Persistence pooled RMSE 15.611, pooled MAE 10.011, pooled R2 0.829
+Ridge pooled RMSE 15.541, pooled MAE 10.540, pooled R2 0.831
+Random Forest pooled RMSE 14.538, pooled MAE 9.490, pooled R2 0.852
+
+Fold 2:
+Persistence pooled RMSE 17.689, pooled MAE 9.136, pooled R2 0.777
+Ridge pooled RMSE 16.503, pooled MAE 9.959, pooled R2 0.806
+Random Forest pooled RMSE 15.107, pooled MAE 8.568, pooled R2 0.837
+
+Fold 3:
+Persistence pooled RMSE 11.862, pooled MAE 6.951, pooled R2 0.896
+Ridge pooled RMSE 12.978, pooled MAE 8.218, pooled R2 0.876
+Random Forest pooled RMSE 12.465, pooled MAE 7.175, pooled R2 0.885
+```
+
+Model-vs-persistence pooled RMSE effects:
+
+```text
+Fold 1 RF improvement: +1.073 RMSE, 31 station wins
+Fold 2 RF improvement: +2.582 RMSE, 34 station wins
+Fold 3 RF improvement: -0.603 RMSE, 27 station wins
+
+Fold 1 Ridge improvement: +0.071 RMSE, 31 station wins
+Fold 2 Ridge improvement: +1.185 RMSE, 24 station wins
+Fold 3 Ridge improvement: -1.116 RMSE, 12 station wins
+```
+
+Random Forest station-win consistency:
+
+```text
+3/3 folds: 10 stations
+2/3 folds: 24 stations
+1/3 folds: 14 stations
+0/3 folds: 3 stations
+```
+
+The strongest 3/3 RF-win stations included Dabali, Embassy Kathmandu,
+Gokarneshwor, Sanepa, Sorakhutte, Sunakothi, Chhetrapati,
+Dhathutole, Tyanglaphat, and Imadol.
+
+Distribution-shift diagnostics showed that validation periods can differ
+substantially from their expanding training histories. Largest target
+mean shifts included Phora Durbar Kathman fold 3 (+60.5), Nakhipot fold
+1 (+57.2), Lamtangil fold 2 (-51.7), Jadibuti fold 3 (-51.0), and
+Sifal fold 1 (-48.7). These shifts help explain why model rankings are
+not stable across all chronological windows.
+
+Sundarighat remained an important diagnostic station:
+
+```text
+Fold 1 target mean shift: +12.6; RF beat Persistence
+Fold 2 target mean shift: -23.8; RF beat Persistence
+Fold 3 target mean shift: +9.2 with higher validation variance;
+        Persistence beat both RF and Ridge
+```
+
+Interpretation:
+
+- Random Forest shows useful nonlinear signal in two of three
+  development windows and wins more station comparisons than it loses in
+  all folds.
+- Persistence remains very difficult to beat, especially in fold 3,
+  where it has the best pooled RMSE and MAE.
+- Ridge is less robust than Random Forest across folds.
+- The project should report temporal robustness rather than relying on a
+  single validation or test period.
+- These results support a temporal-modeling next step, but they do not
+  justify retuning RF or changing the feature set from this analysis
+  alone.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

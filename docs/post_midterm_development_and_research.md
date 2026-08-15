@@ -1161,7 +1161,128 @@ This will allow the project to answer whether conclusions are stable across mult
 
 ---
 
-# 24. Current research story for the final report
+# 24. Rolling-origin / expanding-window validation
+
+## 24.1 Why rolling-origin validation was added
+
+The fixed 15% test period had already been inspected during multiple
+classical-model milestones. To avoid treating that same period as a
+fresh decision set, rolling-origin validation was added over only the
+first 85% development portion of each prepared station dataset.
+
+This answered a different question:
+
+> Are the Persistence, Ridge, and Random Forest conclusions stable
+> across multiple chronological forecast windows?
+
+The existing final 15% test split was not loaded or evaluated.
+
+## 24.2 Fold design
+
+Each prepared station dataset was split into three expanding windows:
+
+```text
+Fold 1: train 0-55%, validate 55-65%
+Fold 2: train 0-65%, validate 65-75%
+Fold 3: train 0-75%, validate 75-85%
+```
+
+The same full-`MODEL_FEATURE_COLUMNS`-valid rows were used for
+Persistence, Ridge, and Random Forest within each fold.
+
+Models were frozen:
+
+```text
+Persistence
+Ridge(alpha=1000)
+Random Forest:
+    n_estimators=100
+    max_depth=10
+    min_samples_leaf=10
+    max_features=1.0
+    random_state=42
+    n_jobs=1
+```
+
+No features or hyperparameters were changed.
+
+## 24.3 Fold-level results
+
+Each fold evaluated 51 datasets. The same tiny prepared datasets that
+were not useful for modeling were skipped because they had insufficient
+full-feature-valid rows.
+
+| Fold | Model | Validation Rows | Macro RMSE | Median R² | Pooled MAE | Pooled RMSE | Pooled R² |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | Persistence | 17,127 | 14.681 | 0.747 | 10.011 | 15.611 | 0.829 |
+| 1 | Ridge | 17,127 | 14.469 | 0.773 | 10.540 | 15.541 | 0.831 |
+| 1 | Random Forest | 17,127 | 14.270 | 0.773 | 9.490 | 14.538 | 0.852 |
+| 2 | Persistence | 17,803 | 13.314 | 0.742 | 9.136 | 17.689 | 0.777 |
+| 2 | Ridge | 17,803 | 13.246 | 0.754 | 9.959 | 16.503 | 0.806 |
+| 2 | Random Forest | 17,803 | 12.747 | 0.786 | 8.568 | 15.107 | 0.837 |
+| 3 | Persistence | 16,764 | 11.014 | 0.735 | 6.951 | 11.862 | 0.896 |
+| 3 | Ridge | 16,764 | 12.035 | 0.747 | 8.218 | 12.978 | 0.876 |
+| 3 | Random Forest | 16,764 | 11.462 | 0.725 | 7.175 | 12.465 | 0.885 |
+
+Random Forest improved pooled RMSE over Persistence in folds 1 and 2:
+
+```text
+Fold 1: +1.073 RMSE improvement, 31 station wins
+Fold 2: +2.582 RMSE improvement, 34 station wins
+Fold 3: -0.603 RMSE degradation, 27 station wins
+```
+
+Ridge was less robust:
+
+```text
+Fold 1: +0.071 RMSE improvement, 31 station wins
+Fold 2: +1.185 RMSE improvement, 24 station wins
+Fold 3: -1.116 RMSE degradation, 12 station wins
+```
+
+## 24.4 Station-level Random Forest robustness
+
+Random Forest beat Persistence by station-level RMSE:
+
+```text
+3/3 folds: 10 stations
+2/3 folds: 24 stations
+1/3 folds: 14 stations
+0/3 folds: 3 stations
+```
+
+This is more nuanced than the single held-out test result. Random
+Forest often helps, but its advantage is not universal across stations
+or forecast periods.
+
+## 24.5 Distribution shifts
+
+Large train-to-validation target shifts were observed. Examples:
+
+```text
+Phora Durbar Kathman fold 3: +60.5 target-mean shift
+Nakhipot fold 1: +57.2
+Lamtangil fold 2: -51.7
+Jadibuti fold 3: -51.0
+Sifal fold 1: -48.7
+```
+
+Sundarighat remained especially useful as a diagnostic station:
+
+```text
+Fold 1: validation mean 96.0, RF beat Persistence
+Fold 2: validation mean 61.6, RF beat Persistence
+Fold 3: validation mean 91.1 with higher validation variance,
+        Persistence beat RF and Ridge
+```
+
+The result strengthened the methodological conclusion: model comparison
+must consider temporal robustness and distribution shift, not only a
+single chronological window.
+
+---
+
+# 25. Current research story for the final report
 
 A defensible narrative for the project so far is:
 
@@ -1198,7 +1319,7 @@ Feature ablation showed strongest extra signal comes from time features
         ↓
 Wind provides a small, heterogeneous local-tabular contribution
         ↓
-Next question: temporal robustness across multiple forecast periods
+Rolling-origin validation showed RF helps in some windows but not all
         ↓
 Later: richer temporal models and wind-aware spatial interaction
 ```
@@ -1209,7 +1330,7 @@ Each major model or preprocessing step was motivated by evidence from the previo
 
 ---
 
-# 25. Important current limitations
+# 26. Important current limitations
 
 ## 25.1 Raw `/measurements` pagination
 
@@ -1237,7 +1358,7 @@ Future model-development conclusions should rely more heavily on rolling-origin 
 
 ---
 
-# 26. Current state at the end of this record
+# 27. Current state at the end of this record
 
 Implemented and validated:
 
@@ -1256,7 +1377,8 @@ Implemented and validated:
 - validation-selected XGBoost with early stopping,
 - physically correct meteorological wind components,
 - wind-component validator,
-- validation-only feature-ablation study.
+- validation-only feature-ablation study,
+- rolling-origin / expanding-window validation.
 
 Current strongest findings:
 
@@ -1275,11 +1397,18 @@ approximately 0.048 (about 0.38%)
 
 Wind station effect:
 24 improve / 27 worsen
+
+Rolling-origin result:
+Random Forest beats Persistence by pooled RMSE in folds 1 and 2, but
+Persistence wins fold 3. RF wins 3/3 folds on 10 stations and at least
+2/3 folds on 34 stations.
 ```
 
 Current next methodological direction:
 
-> Establish rolling-origin / expanding-window validation before making the next major temporal-model decision.
+> Use the rolling-origin evidence to decide whether the next phase should
+> prioritize richer temporal modeling, a refined temporal evaluation
+> design, or wind-spatial interaction modeling.
 
 After temporal robustness is understood, likely future phases include:
 
@@ -1291,7 +1420,7 @@ After temporal robustness is understood, likely future phases include:
 
 ---
 
-# 27. Notes for final thesis/report writing
+# 28. Notes for final thesis/report writing
 
 When converting this development record into the final report:
 

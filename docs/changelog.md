@@ -2,6 +2,43 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Rolling-Origin Validation
+
+### Added
+- Added `18_rolling_origin_validation.py` and
+  `analysis/rolling_origin_validation.py`.
+- Wrote rolling-origin outputs under `results/rolling_origin/`:
+  fold summaries, station metrics, model comparisons, RF station win
+  buckets, fold-frame row counts, and distribution-shift diagnostics.
+
+### Method
+- Used only each prepared station dataset's first 85% development
+  portion.
+- Did not load or evaluate the existing final 15% test split.
+- Used three expanding-window folds:
+  fold 1 train 0-55%, validate 55-65%; fold 2 train 0-65%, validate
+  65-75%; fold 3 train 0-75%, validate 75-85%.
+- Evaluated frozen Persistence, `Ridge(alpha=1000)`, and the frozen
+  Random Forest configuration without retuning or changing
+  `MODEL_FEATURE_COLUMNS`.
+- Used the same full-feature-valid rows within each fold for all three
+  models.
+
+### Findings
+- Each fold evaluated 51 datasets; two tiny prepared datasets were
+  skipped for insufficient full-feature-valid rows.
+- Random Forest beat Persistence by pooled RMSE in folds 1 and 2, but
+  lost in fold 3.
+- RF station wins vs Persistence were 31/51, 34/51, and 27/51 across
+  folds 1-3.
+- RF win consistency across stations: 10 stations won 3/3 folds,
+  24 won 2/3, 14 won 1/3, and 3 won 0/3.
+- Ridge beat Persistence by pooled RMSE in folds 1 and 2, but lost
+  clearly in fold 3.
+- Distribution-shift diagnostics highlighted large validation target
+  mean shifts, including Phora Durbar Kathman in folds 2-3 and
+  Sundarighat's fold-dependent shifts.
+
 ## Milestone: Validation Feature Ablation
 
 ### Added

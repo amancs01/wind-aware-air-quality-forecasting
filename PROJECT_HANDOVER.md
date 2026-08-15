@@ -1956,3 +1956,184 @@ Recommended next step: investigate richer temporal modeling and/or
 wind-spatial interactions using validation-first methodology. Do not
 change production features or use the existing test split as fresh
 confirmation without a deliberate evaluation design.
+
+------------------------------------------------------------------------
+
+## 32. Rolling-Origin / Expanding-Window Validation
+
+This milestone has now been implemented, run once, documented, and
+pushed on `main`.
+
+Purpose:
+
+``` text
+Test temporal robustness of the frozen classical baselines across
+multiple chronological development windows without using the existing
+final 15% test split.
+```
+
+Fold design, applied independently to each prepared station dataset:
+
+``` text
+Fold 1: train 0-55%, validate 55-65%
+Fold 2: train 0-65%, validate 65-75%
+Fold 3: train 0-75%, validate 75-85%
+```
+
+Controls:
+
+-   Used only `data/processed/prepared/`.
+-   Did not load `data/processed/split/test/`.
+-   Did not retune any model.
+-   Did not change `MODEL_FEATURE_COLUMNS`.
+-   Evaluated only Persistence, `Ridge(alpha=1000)`, and the frozen
+    Random Forest configuration.
+-   Used the same full-feature-valid train/validation rows for all
+    models within each station/fold.
+
+Frozen Random Forest configuration:
+
+``` text
+n_estimators = 100
+max_depth = 10
+min_samples_leaf = 10
+max_features = 1.0
+random_state = 42
+n_jobs = 1
+```
+
+Rows:
+
+``` text
+Fold 1: 51 datasets, train rows 89,720, validation rows 17,127
+Fold 2: 51 datasets, train rows 106,847, validation rows 17,803
+Fold 3: 51 datasets, train rows 124,650, validation rows 16,764
+```
+
+Two tiny prepared datasets were skipped in every fold because they had
+insufficient full-feature-valid rows:
+
+``` text
+Kathmandu University__sensor_15286458
+Tarakeswor (SC-15)- GD Labs
+```
+
+Fold results:
+
+``` text
+Fold 1:
+Persistence: macro MAE 9.931, macro RMSE 14.681, median R2 0.747, pooled MAE 10.011, pooled RMSE 15.611, pooled R2 0.829
+Ridge(alpha=1000): macro MAE 10.313, macro RMSE 14.469, median R2 0.773, pooled MAE 10.540, pooled RMSE 15.541, pooled R2 0.831
+Random Forest: macro MAE 9.819, macro RMSE 14.270, median R2 0.773, pooled MAE 9.490, pooled RMSE 14.538, pooled R2 0.852
+
+Fold 2:
+Persistence: macro MAE 8.670, macro RMSE 13.314, median R2 0.742, pooled MAE 9.136, pooled RMSE 17.689, pooled R2 0.777
+Ridge(alpha=1000): macro MAE 9.330, macro RMSE 13.246, median R2 0.754, pooled MAE 9.959, pooled RMSE 16.503, pooled R2 0.806
+Random Forest: macro MAE 8.490, macro RMSE 12.747, median R2 0.786, pooled MAE 8.568, pooled RMSE 15.107, pooled R2 0.837
+
+Fold 3:
+Persistence: macro MAE 7.258, macro RMSE 11.014, median R2 0.735, pooled MAE 6.951, pooled RMSE 11.862, pooled R2 0.896
+Ridge(alpha=1000): macro MAE 8.449, macro RMSE 12.035, median R2 0.747, pooled MAE 8.218, pooled RMSE 12.978, pooled R2 0.876
+Random Forest: macro MAE 7.437, macro RMSE 11.462, median R2 0.725, pooled MAE 7.175, pooled RMSE 12.465, pooled R2 0.885
+```
+
+Model-vs-persistence comparisons:
+
+``` text
+Fold 1 RF pooled RMSE improvement: +1.073; station wins 31/51
+Fold 2 RF pooled RMSE improvement: +2.582; station wins 34/51
+Fold 3 RF pooled RMSE improvement: -0.603; station wins 27/51
+
+Fold 1 Ridge pooled RMSE improvement: +0.071; station wins 31/51
+Fold 2 Ridge pooled RMSE improvement: +1.185; station wins 24/51
+Fold 3 Ridge pooled RMSE improvement: -1.116; station wins 12/51
+```
+
+Random Forest station-win consistency:
+
+``` text
+RF wins 3/3 folds: 10 stations
+RF wins 2/3 folds: 24 stations
+RF wins 1/3 folds: 14 stations
+RF wins 0/3 folds: 3 stations
+```
+
+Largest 3/3 RF-win stations by average RMSE improvement included:
+
+``` text
+Dabali, Handigaun
+Embassy Kathmandu
+Gokarneshwor (SC-13) - GD Labs
+Sanepa (SC - 22) - GD Labs
+Sorakhutte (SC-36)-GD Labs
+Sunakothi (SC - 06) - GD Labs
+Chhetrapati (SC - 19) - GD Labs
+Dhathutole, Handigaun
+Tyanglaphat (SC - 21) - GD Labs
+Imadol(SC-27)- GD Labs
+```
+
+Distribution shifts:
+
+The validation target distribution shifted substantially for several
+station/fold windows. Largest absolute target-mean shifts included:
+
+``` text
+Phora Durbar Kathman fold 3: +60.5
+Nakhipot (SC-08) - GD Labs fold 1: +57.2
+Lamtangil (SC-04)- GD Labs fold 2: -51.7
+Jadibuti (SC-35)-GD Labs fold 3: -51.0
+Sifal(SC-03)- GD Labs fold 1: -48.7
+Bagdol fold 3: -48.2
+Lamtangil (SC-04)- GD Labs fold 3: -47.2
+Balaju (SC-26)- GD Labs fold 3: -46.5
+Baluwatar (SC-02) - GD Labs fold 1: +45.4
+Tokha (SC - 32) - GD Labs fold 3: -44.8
+```
+
+Sundarighat diagnostic:
+
+``` text
+Fold 1:
+train target mean 83.4, validation mean 96.0, shift +12.6
+Persistence RMSE 14.543, RF RMSE 14.269, Ridge RMSE 15.716
+
+Fold 2:
+train target mean 85.4, validation mean 61.6, shift -23.8
+Persistence RMSE 11.534, RF RMSE 10.729, Ridge RMSE 12.825
+
+Fold 3:
+train target mean 82.0, validation mean 91.1, shift +9.2
+Persistence RMSE 13.529, RF RMSE 18.773, Ridge RMSE 19.449
+```
+
+Interpretation:
+
+-   Random Forest is more robust than Ridge and beats Persistence in
+    pooled RMSE in folds 1 and 2.
+-   Persistence remains the strongest model in fold 3 by pooled RMSE
+    and pooled MAE.
+-   RF wins more stations than it loses in all three folds, but pooled
+    performance can still reverse when difficult high-weight windows
+    dominate.
+-   Temporal distribution shift is a real evaluation issue; single
+    fixed-window conclusions are not enough.
+-   Next research should focus on richer temporal modeling and/or
+    rolling-origin evaluation design before graph integration.
+
+Generated outputs:
+
+``` text
+results/rolling_origin/rolling_origin_fold_summary.csv
+results/rolling_origin/rolling_origin_station_metrics.csv
+results/rolling_origin/rolling_origin_model_comparisons.csv
+results/rolling_origin/rolling_origin_rf_station_wins.csv
+results/rolling_origin/rolling_origin_distribution_shifts.csv
+results/rolling_origin/rolling_origin_fold_frames.csv
+```
+
+**Handover status:** Rolling-origin validation is complete. Recommended
+next step: use these robustness results to decide whether to build a
+sequence-model baseline, refine temporal evaluation, or design
+wind-spatial interactions. Do not retune existing classical baselines or
+reuse the final test split for feature/model selection.

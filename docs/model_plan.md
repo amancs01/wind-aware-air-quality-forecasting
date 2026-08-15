@@ -20,6 +20,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | Random Forest | Done |
 | XGBoost | Done |
 | Validation feature ablation | Done |
+| Rolling-origin validation | Done |
 | LSTM | ⬜ Not started |
 | Transformer | ⬜ Not started |
 | Graph construction (wind-weighted station graph) | ⬜ Not started |
