@@ -2439,3 +2439,165 @@ results/lstm/lstm_validation_report.md
 **Handover status:** First LSTM baseline is complete on train +
 validation only. Do not report any final-test LSTM result yet; none has
 been produced.
+
+## 35. Persistence-anchored residual LSTM
+
+Implemented a separate residual LSTM experiment:
+
+``` text
+scripts/21_lstm_residual_baseline.py
+scripts/analysis/lstm_residual_baseline.py
+```
+
+The original direct-target LSTM results under `results/lstm/` were left
+unchanged. Residual outputs are written under:
+
+``` text
+results/lstm/residual/
+```
+
+The final test split was not evaluated.
+
+The experiment kept the same setup as the direct LSTM:
+
+``` text
+Source: data/processed/featured/
+Window: 24 consecutive hourly rows
+Input columns: 11 sequence-native features
+Training: station-specific
+Architecture: 1-layer LSTM, hidden_size=64, Linear head
+Optimizer: Adam learning_rate=0.001
+Loss: MSE
+Batch size: 64
+Max epochs: 50
+Patience: 5
+Seed: 42
+Device: CPU, PyTorch 2.13.0+cpu
+```
+
+Only the prediction target changed:
+
+``` text
+delta_pm25 = PM2.5(t+1) - PM2.5(t)
+
+final prediction = PM2.5(t) + predicted_delta
+```
+
+Residual target scaling was fit on each station's training residuals
+only. Input scalers were still fit on training input values only.
+
+Target distribution comparison:
+
+``` text
+Train absolute target mean/std: 68.673 / 42.349
+Train residual target mean/std: 0.016 / 21.297
+
+Validation absolute target mean/std: 59.297 / 36.950
+Validation residual target mean/std: 0.083 / 11.840
+```
+
+Cohort:
+
+``` text
+Trained stations: 51
+Skipped stations: 5
+Validation sequences: 22,657
+Matched comparison rows: 22,477
+```
+
+Skipped stations:
+
+``` text
+Kathmandu University__sensor_15286458
+Kathmandu University__sensor_15286975
+Kathmandu University__sensor_15286980
+Pulchowk (SC-15)-GD Labs
+Tarakeswor (SC-15)- GD Labs
+```
+
+Native residual LSTM validation:
+
+``` text
+Macro MAE: 6.653
+Macro RMSE: 10.069
+Macro median R2: 0.836
+Pooled MAE: 6.577
+Pooled RMSE: 10.583
+Pooled R2: 0.918
+```
+
+Matched four-way validation comparison:
+
+``` text
+Direct LSTM:
+pooled MAE 9.608, pooled RMSE 15.021, pooled R2 0.835,
+macro RMSE 15.103, macro median R2 0.717
+
+Residual LSTM:
+pooled MAE 6.580, pooled RMSE 10.588, pooled R2 0.918,
+macro RMSE 10.081, macro median R2 0.836
+
+Persistence:
+pooled MAE 7.142, pooled RMSE 11.848, pooled R2 0.897,
+macro RMSE 11.186, macro median R2 0.769
+
+Frozen Random Forest:
+pooled MAE 7.286, pooled RMSE 12.233, pooled R2 0.890,
+macro RMSE 11.606, macro median R2 0.793
+```
+
+Station RMSE wins:
+
+``` text
+Residual LSTM beats Persistence: 49 / 51
+Residual LSTM beats RF: 41 / 51
+Residual LSTM beats direct LSTM: 49 / 51
+Residual LSTM beats all three: 39 / 51
+
+Median residual minus Persistence RMSE: -0.709
+Median residual minus RF RMSE: -0.936
+Median residual minus direct LSTM RMSE: -3.452
+```
+
+Best-epoch distribution:
+
+``` text
+count 51, mean 6.9, median 5, min 1, max 32
+```
+
+Interpretation:
+
+-   Residual learning materially improves the station-specific LSTM.
+-   Anchoring the network to Persistence transforms the task from
+    learning absolute PM2.5 level to learning one-hour change, whose
+    distribution is centered near zero and has much lower variance.
+-   The residual LSTM beats Persistence and frozen RF on pooled
+    validation metrics and on most station-level RMSE comparisons.
+-   This is now the strongest validation-only temporal baseline, but it
+    still should not be evaluated on test or tuned further until the next
+    research step is chosen.
+-   Because residual learning cleared the main baselines, graph design
+    remains justified as the next phase; further station-specific LSTM
+    tuning is lower priority than adding wind-aware inter-station
+    structure.
+
+Generated outputs:
+
+``` text
+results/lstm/residual/validation_station_metrics.csv
+results/lstm/residual/validation_summary.csv
+results/lstm/residual/validation_predictions.csv
+results/lstm/residual/validation_matched_predictions.csv
+results/lstm/residual/validation_matched_summary.csv
+results/lstm/residual/validation_station_win_counts.csv
+results/lstm/residual/validation_win_summary.csv
+results/lstm/residual/training_history.csv
+results/lstm/residual/skipped_stations.csv
+results/lstm/residual/target_distribution_by_station.csv
+results/lstm/residual/target_distribution_summary.csv
+results/lstm/residual/residual_lstm_validation_report.md
+```
+
+**Handover status:** Residual LSTM validation is complete. Recommended
+next step: move toward graph design and wind-aware station interaction,
+using residual LSTM as the sequence baseline to beat.

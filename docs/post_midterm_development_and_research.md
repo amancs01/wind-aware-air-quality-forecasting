@@ -1325,7 +1325,9 @@ Sequence dataset validation established featured data as the safe LSTM source
         ↓
 First station-specific LSTM baseline trained on validation only and lost to Persistence/RF
         ↓
-Later: richer temporal models and wind-aware spatial interaction
+Persistence-anchored residual LSTM beat Persistence/RF on validation
+        ↓
+Next: wind-aware graph design and station interaction
 ```
 
 This sequence is much stronger than simply saying "we tried several machine-learning models."
@@ -1393,7 +1395,8 @@ Implemented and validated:
 - validation-only feature-ablation study,
 - rolling-origin / expanding-window validation,
 - validation-only LSTM sequence dataset design,
-- first station-specific LSTM baseline.
+- first station-specific LSTM baseline,
+- persistence-anchored residual LSTM baseline.
 
 Current strongest findings:
 
@@ -1430,6 +1433,13 @@ Native validation pooled RMSE 15.036, pooled MAE 9.619, pooled R2 0.834.
 On 22,477 matched validation timestamps, Persistence pooled RMSE was
 11.848, frozen RF pooled RMSE was 12.233, and LSTM pooled RMSE was
 15.021. LSTM beat Persistence on 10/51 stations and RF on 7/51 stations.
+
+Residual LSTM baseline:
+Native validation pooled RMSE 10.583, pooled MAE 6.577, pooled R2 0.918.
+On the same 22,477 matched validation timestamps, residual LSTM pooled
+RMSE was 10.588 versus Persistence 11.848, frozen RF 12.233, and direct
+LSTM 15.021. Residual LSTM beat Persistence on 49/51 stations, RF on
+41/51 stations, and direct LSTM on 49/51 stations.
 ```
 
 Current next methodological direction:
@@ -1440,11 +1450,11 @@ Current next methodological direction:
 
 After temporal robustness is understood, likely future phases include:
 
-1. diagnose why the first station-specific LSTM underperformed,
-2. targeted temporal feature experiments if needed,
-3. careful review/integration of graph work,
-4. wind-aware directed edge construction,
-5. eventual GAT-GRU or related spatio-temporal architecture.
+1. careful review/integration of graph work,
+2. wind-aware directed edge construction,
+3. residual temporal baseline integration,
+4. eventual GAT-GRU or related spatio-temporal architecture,
+5. targeted temporal diagnostics only if graph results require them.
 
 ---
 
@@ -1668,3 +1678,100 @@ next sequence-model step should be diagnostic: identify which stations
 benefit, inspect loss curves and target shifts, and consider whether a
 pooled LSTM, stronger regularization, or a much simpler sequence
 baseline is a better bridge before graph-aware modeling.
+
+---
+
+# 31. Persistence-anchored residual LSTM
+
+The direct station-specific LSTM underperformed because it tried to
+predict absolute PM2.5 directly. A follow-up experiment kept the same
+model and training setup but changed the target to a correction around
+Persistence:
+
+```text
+delta_pm25 = PM2.5(t+1) - PM2.5(t)
+prediction = PM2.5(t) + predicted_delta
+```
+
+Implementation:
+
+```text
+scripts/21_lstm_residual_baseline.py
+scripts/analysis/lstm_residual_baseline.py
+```
+
+This experiment used the same 24-hour featured windows, 11
+sequence-native input columns, station-specific training, LSTM
+architecture, optimizer, learning rate, batch size, maximum epochs,
+patience, and seed as the direct LSTM. Only the target changed. No test
+split was evaluated.
+
+Residual scaling was fit on training residuals only. Absolute PM2.5
+metrics were computed after adding the predicted residual back to the
+final PM2.5 value in the input window.
+
+The target distribution shows why this reformulation matters:
+
+```text
+Train absolute PM2.5 target mean/std: 68.673 / 42.349
+Train residual target mean/std:       0.016 / 21.297
+
+Validation absolute target mean/std:  59.297 / 36.950
+Validation residual target mean/std:  0.083 / 11.840
+```
+
+Native residual LSTM validation:
+
+```text
+Macro MAE: 6.653
+Macro RMSE: 10.069
+Macro median R2: 0.836
+Pooled MAE: 6.577
+Pooled RMSE: 10.583
+Pooled R2: 0.918
+```
+
+Matched four-way validation comparison:
+
+```text
+Direct LSTM pooled RMSE:   15.021
+Residual LSTM pooled RMSE: 10.588
+Persistence pooled RMSE:   11.848
+Frozen RF pooled RMSE:     12.233
+
+Direct LSTM pooled MAE:    9.608
+Residual LSTM pooled MAE:  6.580
+Persistence pooled MAE:    7.142
+Frozen RF pooled MAE:      7.286
+```
+
+Station-level RMSE wins:
+
+```text
+Residual LSTM beat Persistence: 49/51
+Residual LSTM beat RF: 41/51
+Residual LSTM beat direct LSTM: 49/51
+Residual LSTM beat all three: 39/51
+```
+
+Best epoch behavior:
+
+```text
+mean best epoch: 6.9
+median best epoch: 5
+min best epoch: 1
+max best epoch: 32
+```
+
+Interpretation:
+
+Residual learning materially improved the LSTM. Scientifically, this is
+not just a better neural-network trick; it changes the learning problem
+to modeling departures from the strongest one-hour baseline. The residual
+target is centered near zero and lower-variance, so the LSTM can focus on
+short-term change rather than relearning the absolute PM2.5 level.
+
+This is now the strongest validation-only temporal baseline. Because it
+beats Persistence and frozen RF, the next research phase should move to
+wind-aware graph design and inter-station interaction rather than further
+station-specific LSTM tuning.

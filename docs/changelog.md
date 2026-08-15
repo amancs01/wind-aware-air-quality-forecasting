@@ -2,6 +2,53 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Residual LSTM Baseline
+
+### Added
+- Added persistence-anchored residual LSTM experiment via
+  `21_lstm_residual_baseline.py` and
+  `analysis/lstm_residual_baseline.py`.
+- Wrote separate outputs under `results/lstm/residual/`, leaving the
+  original direct-target LSTM outputs unchanged.
+- Added residual target distribution summaries, native validation
+  metrics, four-way matched predictions, matched comparison summaries,
+  station win counts, training history, skipped station list, and a
+  Markdown report.
+
+### Method
+- Kept the same 24-hour featured windows, 11 sequence-native features,
+  station-specific training, LSTM architecture, optimizer, learning
+  rate, batch size, max epochs, patience, and seed as the direct LSTM.
+- Changed only the supervised target to
+  `PM2.5(t+1) - PM2.5(t)`, where `PM2.5(t)` is the final PM2.5 value in
+  the input window.
+- Fit residual-target scalers on training residuals only.
+- Converted residual predictions back to absolute PM2.5 with
+  `PM2.5(t) + predicted_delta` before calculating metrics.
+- Used train and validation only; the final test split was not
+  evaluated.
+- Compared Direct LSTM, Residual LSTM, Persistence, and frozen Random
+  Forest on identical validation target timestamps.
+
+### Findings
+- Trained 51 stations and skipped 5 stations.
+- Residual targets were centered near zero and lower-variance than
+  absolute PM2.5 targets: train residual mean/std 0.016/21.297 vs train
+  absolute target mean/std 68.673/42.349.
+- Native residual LSTM validation metrics were pooled MAE 6.577, pooled
+  RMSE 10.583, pooled R2 0.918, macro RMSE 10.069, and macro median R2
+  0.836.
+- Matched validation pooled RMSEs were: Direct LSTM 15.021, Residual
+  LSTM 10.588, Persistence 11.848, and frozen RF 12.233.
+- Residual LSTM beat Persistence on 49/51 stations, RF on 41/51
+  stations, and direct LSTM on 49/51 stations.
+- Residual LSTM beat all three comparators on 39/51 stations.
+- Best epoch median was 5 and maximum was 32, indicating much earlier
+  convergence than the direct-target LSTM.
+- Conclusion: residual learning materially improved the LSTM and should
+  be treated as the current validation-only temporal baseline before
+  graph design.
+
 ## Milestone: First LSTM Baseline
 
 ### Added

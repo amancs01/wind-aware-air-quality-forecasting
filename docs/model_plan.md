@@ -23,6 +23,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | Rolling-origin validation | Done |
 | LSTM sequence dataset validation | Done |
 | First station-specific LSTM baseline | Done |
+| Residual station-specific LSTM baseline | Done |
 | Transformer | ⬜ Not started |
 | Graph construction (wind-weighted station graph) | ⬜ Not started |
 | GAT-GRU (wind-aware spatio-temporal model) | ⬜ Not started |
@@ -67,14 +68,44 @@ sequence work should diagnose whether the issue is station-specific data
 sparsity, overfitting, architecture simplicity, or whether one-hour
 forecasting is already dominated by current PM2.5 persistence.
 
+## Residual LSTM Baseline Result
+
+The persistence-anchored residual LSTM keeps the same architecture and
+training setup as the direct LSTM, but predicts the one-hour PM2.5
+change:
+
+```text
+delta_pm25 = PM2.5(t+1) - PM2.5(t)
+prediction = PM2.5(t) + predicted_delta
+```
+
+Validation result:
+
+```text
+Native residual LSTM validation sequences: 22,657
+Native residual LSTM pooled RMSE: 10.583
+Native residual LSTM pooled MAE: 6.577
+Native residual LSTM pooled R2: 0.918
+
+Matched validation rows: 22,477
+Direct LSTM pooled RMSE: 15.021
+Residual LSTM pooled RMSE: 10.588
+Persistence pooled RMSE: 11.848
+Frozen RF pooled RMSE: 12.233
+```
+
+Residual learning materially improves the station-specific LSTM and
+clears Persistence and RF on pooled validation. It should be treated as
+the current temporal baseline for future graph-aware work.
+
 ## Next Steps
 
-- Diagnose the LSTM failure mode before increasing sequence complexity:
-  compare per-station errors, inspect small-station behavior, and consider
-  a simpler sequence baseline or pooled model.
+- Move toward graph construction and wind-aware station interaction,
+  using residual LSTM as the temporal baseline to beat.
 - Wind/spatial interaction design, using validation evidence only and
   avoiding premature feature-set changes based on the already-observed
   test split
-- Transformer
+- Defer Transformer work until graph design or residual sequence
+  diagnostics justify it.
 - Graph construction from station geography + wind field
 - Wind-aware GAT-GRU

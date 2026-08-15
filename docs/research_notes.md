@@ -740,6 +740,78 @@ cheap current-PM2.5 forecast. The mixed best-epoch distribution and the
 large Balkumari train/validation gap suggest station-level instability
 and overfitting risk, especially for smaller datasets.
 
+## Persistence-Anchored Residual LSTM
+
+A residual LSTM experiment was added after the direct LSTM underperformed
+Persistence and RF. The setup kept the same station-specific LSTM
+architecture, optimizer, learning rate, batch size, maximum epochs,
+patience, seed, 24-hour featured windows, and 11 sequence-native input
+features. Only the supervised target changed:
+
+```text
+delta_pm25 = PM2.5(t+1) - PM2.5(t)
+prediction = PM2.5(t) + predicted_delta
+```
+
+Residual target scaling was fit on training residuals only.
+
+The residual target is scientifically different from absolute PM2.5
+prediction. It asks the network to learn the correction to Persistence
+rather than relearn the dominant autocorrelation structure. The target
+distribution confirms why this is easier:
+
+```text
+Train absolute PM2.5 target mean/std: 68.673 / 42.349
+Train residual target mean/std:       0.016 / 21.297
+
+Validation absolute target mean/std:  59.297 / 36.950
+Validation residual target mean/std:  0.083 / 11.840
+```
+
+Native residual LSTM validation metrics:
+
+```text
+Macro MAE 6.653
+Macro RMSE 10.069
+Macro median R2 0.836
+Pooled MAE 6.577
+Pooled RMSE 10.583
+Pooled R2 0.918
+```
+
+Matched validation comparison:
+
+```text
+Direct LSTM:   pooled RMSE 15.021, pooled MAE 9.608, pooled R2 0.835
+Residual LSTM: pooled RMSE 10.588, pooled MAE 6.580, pooled R2 0.918
+Persistence:   pooled RMSE 11.848, pooled MAE 7.142, pooled R2 0.897
+RandomForest:  pooled RMSE 12.233, pooled MAE 7.286, pooled R2 0.890
+```
+
+Station RMSE wins:
+
+```text
+Residual LSTM vs Persistence: 49 wins / 2 losses
+Residual LSTM vs RF:          41 wins / 10 losses
+Residual LSTM vs direct LSTM: 49 wins / 2 losses
+Residual LSTM beat all three: 39 stations
+```
+
+Best epoch summary:
+
+```text
+Mean 6.9, median 5, min 1, max 32
+```
+
+Interpretation: residual learning materially improves the LSTM. The
+first direct LSTM failed because it had to learn the absolute PM2.5 level
+and the persistence relationship together. The residual version anchors
+the model to the strongest simple baseline and lets it focus on one-hour
+change. This makes residual LSTM the strongest validation-only temporal
+baseline so far. Since it now clears Persistence and RF, the next
+research step should move toward wind-aware graph design rather than
+more station-specific LSTM tuning.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).
