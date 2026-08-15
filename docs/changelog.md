@@ -2,6 +2,51 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: LSTM Sequence Dataset Validation
+
+### Added
+- Added validation-only LSTM sequence dataset design via
+  `19_lstm_sequence_dataset_validation.py` and
+  `analysis/lstm_sequence_dataset_validation.py`.
+- Wrote sequence validation outputs under
+  `results/lstm_sequence_validation/`, including source assessment,
+  station split counts, aggregate rejection counts, accepted-window proof
+  checks, sparse-station flags, input-design comparison, and a Markdown
+  report.
+
+### Method
+- Used `data/processed/featured/` for sequence construction because it
+  preserves the hourly timeline.
+- Did not construct sequence windows from `data/processed/prepared/`,
+  because prepared rows drop missing current/target PM2.5 and are not
+  guaranteed to be consecutive hours.
+- Validated 24-hour input windows with a one-hour-ahead PM2.5 target.
+- Enforced exact hourly input timestamps, target timestamp exactly one
+  hour after the final input timestamp, no missing input/target values,
+  chronological split membership, and no split-boundary crossing.
+- Compared full `MODEL_FEATURE_COLUMNS` against a sequence-native input
+  design before recommending the first LSTM baseline inputs.
+
+### Findings
+- Featured data had zero invalid hourly gaps across 56 stations.
+- Prepared data had row gaps in 51 stations, with 5,051 invalid adjacent
+  hourly gaps and a largest adjacent prepared-row gap of 11,636 hours.
+- Recommended input columns are current PM2.5, cyclical time, weather,
+  and physical wind components:
+  `pm2_5`, `hour_sin`, `hour_cos`, `month_sin`, `month_cos`,
+  `temperature`, `humidity`, `pressure`, `dew_point`, `wind_u`,
+  `wind_v`.
+- The recommended sequence-native design produced 146,497 accepted
+  sequences: 101,168 train, 22,657 validation, and 22,672 test.
+- Full `MODEL_FEATURE_COLUMNS` produced 119,307 accepted sequences,
+  mainly because lag/rolling PM2.5 summaries reject more windows after
+  missing PM2.5 periods.
+- Accepted-window proof checks had zero invalid input lengths, zero
+  invalid hourly gaps, zero invalid target gaps, and zero split
+  membership violations.
+- Seven stations were flagged as too sparse for the recommended sequence
+  design.
+
 ## Milestone: Rolling-Origin Validation
 
 ### Added

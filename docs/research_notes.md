@@ -581,6 +581,80 @@ Interpretation:
   justify retuning RF or changing the feature set from this analysis
   alone.
 
+## LSTM Sequence Dataset Validation
+
+A validation-only sequence dataset analysis was added before any LSTM
+training. The important correction is that sequences must not be built
+from `data/processed/prepared/` by row position. Prepared files remove
+rows with missing current or target PM2.5, so adjacent prepared rows can
+span multi-hour or multi-day gaps.
+
+The proposed sequence source is `data/processed/featured/`, which keeps
+the hourly timeline intact after trimming:
+
+```text
+Featured stations checked: 56
+Featured invalid hourly gaps: 0
+Prepared stations with row gaps: 51
+Prepared invalid hourly gaps: 5,051
+Prepared largest gap: 11,636 hours
+```
+
+The future LSTM dataset should use 24 hourly input rows to predict PM2.5
+one hour after the final input timestamp. Each accepted sequence must
+have exactly hourly input timestamps, a target exactly at `t+1 hour`, no
+missing input/target values, and all timestamps inside one chronological
+split.
+
+Two input designs were compared scientifically:
+
+```text
+Full MODEL_FEATURE_COLUMNS:
+15 columns including lag_6, lag_24, rolling_mean_6, and rolling_std_6
+
+Recommended sequence-native design:
+pm2_5, hour_sin, hour_cos, month_sin, month_cos, temperature, humidity,
+pressure, dew_point, wind_u, wind_v
+```
+
+The recommended first LSTM baseline is the sequence-native 11-column
+design. It lets the LSTM learn 24-hour temporal structure directly,
+avoids duplicating that temporal role through handcrafted lag/rolling
+summaries, remains easier to interpret scientifically, and preserves
+more valid sequences.
+
+Accepted sequence counts:
+
+```text
+Sequence-native:
+train 101,168; validation 22,657; test 22,672; total 146,497
+
+Full MODEL_FEATURE_COLUMNS:
+train 81,702; validation 18,677; test 18,928; total 119,307
+```
+
+Proof checks over accepted windows found zero invalid input lengths, zero
+invalid hourly input gaps, zero invalid target gaps, and zero split
+membership violations for both designs.
+
+Stations with too few recommended-design sequences were:
+
+```text
+Kathmandu University__sensor_15286458
+Kathmandu University__sensor_15286975
+Kathmandu University__sensor_15286980
+Pulchowk (SC-15)-GD Labs
+Purano naikap (SC-29)-GD Labs
+Ramkot (SC - 10) - GD Labs
+Tarakeswor (SC-15)- GD Labs
+```
+
+Future dataset architecture should store a reusable sequence index with
+station, split, input-start timestamp, input-end timestamp, and target
+timestamp. Input tensors should have shape `(n_sequences, 24, 11)` for
+the recommended design, with one scalar next-hour PM2.5 target. Any
+scaler must be fit on training input rows only.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

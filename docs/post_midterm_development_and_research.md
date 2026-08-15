@@ -1321,6 +1321,8 @@ Wind provides a small, heterogeneous local-tabular contribution
         ↓
 Rolling-origin validation showed RF helps in some windows but not all
         ↓
+Sequence dataset validation established featured data as the safe LSTM source
+        ↓
 Later: richer temporal models and wind-aware spatial interaction
 ```
 
@@ -1356,6 +1358,15 @@ The small wind-ablation gain should not be confused with the full research hypot
 
 Future model-development conclusions should rely more heavily on rolling-origin validation or another deliberately designed chronological evaluation framework.
 
+## 25.6 Sequence models must not use prepared rows by position
+
+Prepared datasets remove rows with missing current or target PM2.5.
+That makes adjacent prepared rows unsuitable for sequence windows because
+they are not guaranteed to be adjacent hours. Future LSTM or other
+sequence datasets should construct windows from the hourly-continuous
+featured stage and reject windows that contain missing values, timestamp
+gaps, or split-boundary crossings.
+
 ---
 
 # 27. Current state at the end of this record
@@ -1378,7 +1389,8 @@ Implemented and validated:
 - physically correct meteorological wind components,
 - wind-component validator,
 - validation-only feature-ablation study,
-- rolling-origin / expanding-window validation.
+- rolling-origin / expanding-window validation,
+- validation-only LSTM sequence dataset design.
 
 Current strongest findings:
 
@@ -1402,6 +1414,13 @@ Rolling-origin result:
 Random Forest beats Persistence by pooled RMSE in folds 1 and 2, but
 Persistence wins fold 3. RF wins 3/3 folds on 10 stations and at least
 2/3 folds on 34 stations.
+
+LSTM sequence dataset validation:
+Use data/processed/featured/ rather than prepared rows by position.
+Recommended first LSTM input shape is (n_sequences, 24, 11), using
+current PM2.5, cyclical time, weather, and physical wind components.
+Accepted sequence counts are 101,168 train, 22,657 validation, and
+22,672 test with zero accepted-window timestamp or split violations.
 ```
 
 Current next methodological direction:
@@ -1435,5 +1454,72 @@ When converting this development record into the final report:
 - Explain why future graph alignment must use the wind transport direction rather than raw meteorological FROM direction.
 - Preserve chronological evaluation and avoid random splitting for the time-series forecasting task.
 - Treat rolling-origin validation as a response to temporal distribution shift and repeated inspection of a single fixed test period.
+- Explain that the first LSTM baseline should use sequence-native inputs
+  rather than full tabular lag/rolling features, because the sequence
+  itself is the temporal representation.
 
 This file should continue to be updated when a **major new research phase** is completed, especially rolling-origin validation, sequence modeling, graph integration, and final wind-aware model evaluation.
+
+---
+
+# 29. LSTM sequence dataset validation
+
+Before implementing or training an LSTM, the sequence data design was
+validated explicitly.
+
+The main finding was methodological: `data/processed/prepared/` is not a
+safe source for row-position sequence windows. It drops rows with missing
+current or target PM2.5, so two neighboring prepared rows can be many
+hours apart. The validator therefore recommends `data/processed/featured/`
+as the sequence source because it preserves the hourly timeline.
+
+Source evidence:
+
+```text
+Featured stations checked: 56
+Featured invalid hourly gaps: 0
+Prepared stations with row gaps: 51
+Prepared invalid hourly gaps: 5,051
+Prepared largest adjacent-row gap: 11,636 hours
+```
+
+The proposed future LSTM window is:
+
+```text
+Input: 24 consecutive hourly timestamps
+Target: PM2.5 exactly one hour after the final input timestamp
+Rejected: missing input/target values, timestamp gaps, split crossings
+```
+
+The first LSTM baseline should use the sequence-native input design:
+
+```text
+pm2_5, hour_sin, hour_cos, month_sin, month_cos, temperature, humidity,
+pressure, dew_point, wind_u, wind_v
+```
+
+This is preferred over full `MODEL_FEATURE_COLUMNS` because an LSTM is
+meant to learn temporal dependence from the ordered 24-hour input itself.
+Including handcrafted lag and rolling PM2.5 features would mix a tabular
+feature-engineering strategy into the first sequence baseline and would
+remove additional windows when lag/rolling values are missing.
+
+Accepted sequence counts:
+
+```text
+Sequence-native design:
+train 101,168; validation 22,657; test 22,672; total 146,497
+
+Full MODEL_FEATURE_COLUMNS:
+train 81,702; validation 18,677; test 18,928; total 119,307
+```
+
+Accepted-window proofs showed zero invalid input lengths, zero invalid
+hourly input gaps, zero invalid one-hour targets, and zero split
+membership violations.
+
+Recommended future architecture: create a reusable sequence index from
+featured station files, storing station, split, input-start timestamp,
+input-end timestamp, and target timestamp. Materialize tensors from this
+index with shape `(n_sequences, 24, 11)` and scalar next-hour PM2.5
+targets. Fit scaling on training input rows only.

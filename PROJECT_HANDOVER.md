@@ -2137,3 +2137,142 @@ next step: use these robustness results to decide whether to build a
 sequence-model baseline, refine temporal evaluation, or design
 wind-spatial interactions. Do not retune existing classical baselines or
 reuse the final test split for feature/model selection.
+
+## 33. LSTM sequence dataset validation
+
+Implemented validation-only sequence dataset design for a future LSTM:
+
+``` text
+scripts/19_lstm_sequence_dataset_validation.py
+scripts/analysis/lstm_sequence_dataset_validation.py
+```
+
+No LSTM was implemented or trained.
+
+Main source decision:
+
+``` text
+Use: data/processed/featured/
+Do not build sequence windows from: data/processed/prepared/
+```
+
+Reason: `data/processed/prepared/` drops rows with missing current or
+target PM2.5, so adjacent prepared rows are not necessarily adjacent
+hours. The sequence validator confirmed this directly:
+
+``` text
+Featured stations checked: 56
+Featured invalid hourly gaps: 0
+Featured largest gap: 1 hour
+
+Prepared stations with row gaps: 51
+Prepared invalid hourly gaps: 5,051
+Prepared largest gap: 11,636 hours
+```
+
+Future LSTM window definition:
+
+``` text
+Input window: 24 consecutive hourly rows
+Target: PM2.5 exactly 1 hour after the final input timestamp
+No window may cross missing/gap periods
+No window may cross train/validation/test split boundaries
+No future information is included in input columns
+```
+
+The split boundary timestamps are derived from the existing prepared
+chronological split convention, but all actual windows are built and
+validated from the hourly-continuous featured files.
+
+Input-design comparison:
+
+``` text
+Full MODEL_FEATURE_COLUMNS:
+pm2_5, lag_6, lag_24, rolling_mean_6, rolling_std_6, hour_sin, hour_cos,
+month_sin, month_cos, wind_u, wind_v, temperature, humidity, pressure,
+dew_point
+
+Recommended sequence-native first LSTM baseline:
+pm2_5, hour_sin, hour_cos, month_sin, month_cos, temperature, humidity,
+pressure, dew_point, wind_u, wind_v
+```
+
+Recommendation: use the sequence-native 11-column design for the first
+LSTM baseline. The LSTM's scientific purpose is to learn temporal
+dependencies from the 24-hour sequence itself. Adding hand-engineered
+lag/rolling PM2.5 summaries would partially duplicate the LSTM's temporal
+role, reduce interpretability, and reject more otherwise valid windows
+because lag/rolling columns are often missing after PM2.5 gaps.
+
+Aggregate validation counts:
+
+``` text
+Sequence-native design:
+train:      252,725 candidate targets, 101,168 accepted,
+            150,319 rejected for missing values, 0 discontinuities,
+            6 split-boundary crossings, 1,232 insufficient-history cases
+validation: 75,370 candidate targets, 22,657 accepted,
+            51,486 rejected for missing values, 0 discontinuities,
+            1,224 split-boundary crossings, 3 insufficient-history cases
+test:       61,818 candidate targets, 22,672 accepted,
+            37,918 rejected for missing values, 0 discontinuities,
+            1,224 split-boundary crossings, 4 insufficient-history cases
+
+Full MODEL_FEATURE_COLUMNS design:
+train:      81,702 accepted
+validation: 18,677 accepted
+test:       18,928 accepted
+```
+
+Proof checks over accepted windows:
+
+``` text
+Full MODEL_FEATURE_COLUMNS accepted windows: 119,307
+Sequence-native accepted windows: 146,497
+
+Invalid input row counts: 0
+Invalid hourly input gaps: 0
+Invalid target gaps: 0
+Invalid split memberships: 0
+```
+
+Stations flagged as too sparse for the recommended design:
+
+``` text
+Kathmandu University__sensor_15286458
+Kathmandu University__sensor_15286975
+Kathmandu University__sensor_15286980
+Pulchowk (SC-15)-GD Labs
+Purano naikap (SC-29)-GD Labs
+Ramkot (SC - 10) - GD Labs
+Tarakeswor (SC-15)- GD Labs
+```
+
+Generated outputs:
+
+``` text
+results/lstm_sequence_validation/sequence_source_assessment.csv
+results/lstm_sequence_validation/sequence_station_split_counts.csv
+results/lstm_sequence_validation/sequence_summary.csv
+results/lstm_sequence_validation/sequence_accepted_window_checks.csv
+results/lstm_sequence_validation/sequence_stations_too_few.csv
+results/lstm_sequence_validation/sequence_input_designs.csv
+results/lstm_sequence_validation/sequence_validation_report.md
+```
+
+Recommended future dataset architecture:
+
+-   Build a sequence index from featured station files with station,
+    split, input-start timestamp, input-end timestamp, and target
+    timestamp.
+-   Materialize tensors from that index with shape
+    `(n_sequences, 24, 11)` and scalar next-hour PM2.5 targets.
+-   Fit any scaler on training input rows only, then apply it unchanged
+    to validation and test.
+-   Keep station and timestamp metadata with each sequence so later
+    station-specific, pooled, or graph-aware models can reuse the same
+    validated sequence index.
+
+**Handover status:** LSTM sequence dataset validation is complete. The
+next step may be implementation of the actual dataset loader and a first
+LSTM baseline, but no LSTM training has been performed yet.
