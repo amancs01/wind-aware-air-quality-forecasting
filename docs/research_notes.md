@@ -812,6 +812,62 @@ baseline so far. Since it now clears Persistence and RF, the next
 research step should move toward wind-aware graph design rather than
 more station-specific LSTM tuning.
 
+## Graph Design Audit
+
+A graph design audit was completed before implementing dynamic wind
+edges. No dynamic edges or GNN/GAT model were implemented.
+
+Main identity finding:
+
+```text
+metadata rows: 56
+unique human station names: 54
+unique PM2.5 sensors: 56
+featured datasets: 56
+model-usable train+validation datasets: 51
+current station_mapping nodes: 54
+```
+
+The current `StationMapper` drops duplicate human station names, which
+collapses the three Kathmandu University PM2.5 sensors into one node. It
+also uses raw station names rather than the canonical featured
+`dataset_name`, so it is not one-to-one with the current modeling data.
+
+Graph node policy:
+
+```text
+Canonical registry: 56 sensor-qualified featured datasets
+First supervised graph model: 51 train+validation model-usable nodes
+Identity key: dataset_name, with pm25_sensor_id retained
+```
+
+Distance and bearing formulas were verified for the current 54-node
+artifacts, but those artifacts must be regenerated after fixing node
+identity. The current KNN adjacency is symmetrized, while the static edge
+CSV stores only 270 original directed KNN rows. The symmetrized adjacency
+contains 362 directed edges, so future dynamic edge candidates must be
+the directed expansion of the symmetric KNN union.
+
+Dynamic wind edge design:
+
+```text
+transport_direction_A(t) = (wind_direction_A(t) + 180) % 360
+alignment_AB(t) = max(0, cos(angle difference between transport direction
+                             at A and bearing A->B))
+speed_factor_A(t) = wind_speed_A(t) / (wind_speed_A(t) + 5)
+distance_factor_AB = exp(-distance_AB / lambda_d)
+raw_weight_AB(t) = candidate_AB * alignment_AB(t) *
+                   speed_factor_A(t) * distance_factor_AB
+```
+
+Use source-node wind for `A -> B`, because the edge represents pollution
+transport leaving source A toward target B. Calm wind, wind pointing away
+from B, missing weather, missing PM2.5, and non-shared timestamps should
+be handled with explicit edge/node masks and flags rather than silent
+row dropping.
+
+The full design contract is in `docs/graph_design_audit.md`.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

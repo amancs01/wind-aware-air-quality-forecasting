@@ -2,6 +2,44 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Graph Design Audit
+
+### Added
+- Added a graph design audit helper via `22_graph_design_audit.py` and
+  `analysis/graph_design_audit.py`.
+- Added `docs/graph_design_audit.md` as the finalized design contract
+  before dynamic wind edge implementation.
+- Generated ignored audit outputs under
+  `data/processed/graph/design_audit/`.
+
+### Method
+- Reviewed current `main` graph scripts and `Nirika-work` graph scripts
+  01-07 without merging `Nirika-work`.
+- Verified that scripts 01-04 match across branches and scripts 05-07
+  are empty placeholders.
+- Audited node identity, station/sensor coordinate mapping, distance
+  matrix, bearing matrix, static KNN adjacency, and static edge list.
+- Designed the dynamic wind edge formula mathematically but did not
+  implement dynamic edges.
+
+### Findings
+- Current graph mapping has 54 nodes because it drops duplicate human
+  station names, but canonical featured data has 56 sensor-qualified
+  PM2.5 datasets.
+- The first supervised graph model should use the 51 train+validation
+  model-usable nodes while preserving a canonical 56-node registry.
+- Current distance and bearing calculations are correct for the current
+  54-node mapping, but must be regenerated after node identity is fixed.
+- Current static KNN adjacency is symmetrized; the edge CSV stores only
+  the original 270 KNN rows, while the adjacency implies 362 directed
+  edges.
+- Future dynamic candidate edges should be the directed expansion of the
+  symmetric KNN union.
+- Dynamic A->B wind edges should use source-node wind, convert
+  meteorological FROM direction to transport direction, combine
+  alignment, wind speed, and distance decay, and preserve masks/flags for
+  calm wind, missing weather, missing PM2.5, and timestamp availability.
+
 ## Milestone: Residual LSTM Baseline
 
 ### Added

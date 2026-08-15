@@ -25,6 +25,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | First station-specific LSTM baseline | Done |
 | Residual station-specific LSTM baseline | Done |
 | Transformer | ⬜ Not started |
+| Graph design audit | Done |
 | Graph construction (wind-weighted station graph) | ⬜ Not started |
 | GAT-GRU (wind-aware spatio-temporal model) | ⬜ Not started |
 | Explainability | ⬜ Not started |
@@ -98,6 +99,38 @@ Residual learning materially improves the station-specific LSTM and
 clears Persistence and RF on pooled validation. It should be treated as
 the current temporal baseline for future graph-aware work.
 
+## Graph Design Decision
+
+Graph implementation should not proceed from the current
+`station_mapping.csv` because it is keyed by human station name and drops
+duplicate PM2.5 sensors. The graph identity key must be the canonical
+featured `dataset_name` with `pm25_sensor_id` retained.
+
+Policy:
+
+```text
+Canonical graph registry: 56 sensor-qualified featured datasets
+First supervised graph node set: 51 train+validation model-usable nodes
+Static candidates: directed expansion of the symmetric KNN union
+Wind source for A->B: source node A
+```
+
+Dynamic wind edge equation:
+
+```text
+transport_direction_A(t) = (wind_direction_A(t) + 180) % 360
+alignment_AB(t) = max(0, cos(angle_difference(transport_direction_A,
+                                              bearing_A_to_B)))
+speed_factor_A(t) = wind_speed_A(t) / (wind_speed_A(t) + 5)
+distance_factor_AB = exp(-distance_AB / lambda_d)
+raw_weight_AB(t) = candidate_AB * alignment_AB(t) *
+                   speed_factor_A(t) * distance_factor_AB
+```
+
+Before implementing dynamic edges, regenerate the mapping, distance
+matrix, bearing matrix, and static candidate edge list from the corrected
+sensor-qualified node registry. See `docs/graph_design_audit.md`.
+
 ## Next Steps
 
 - Move toward graph construction and wind-aware station interaction,
@@ -105,6 +138,8 @@ the current temporal baseline for future graph-aware work.
 - Wind/spatial interaction design, using validation evidence only and
   avoiding premature feature-set changes based on the already-observed
   test split
+- Correct graph node identity and static candidate edge representation
+  before dynamic wind edges.
 - Defer Transformer work until graph design or residual sequence
   diagnostics justify it.
 - Graph construction from station geography + wind field

@@ -2601,3 +2601,129 @@ results/lstm/residual/residual_lstm_validation_report.md
 **Handover status:** Residual LSTM validation is complete. Recommended
 next step: move toward graph design and wind-aware station interaction,
 using residual LSTM as the sequence baseline to beat.
+
+## 36. Graph design audit before dynamic wind edges
+
+Completed a documentation/audit pass before implementing dynamic wind
+edges:
+
+``` text
+scripts/22_graph_design_audit.py
+scripts/analysis/graph_design_audit.py
+docs/graph_design_audit.md
+```
+
+No dynamic wind edges, graph snapshots, GNN, or GAT/GNN training were
+implemented.
+
+Branch/code review:
+
+``` text
+Nirika-work graph scripts 01-04 match main.
+Nirika-work graph scripts 05-07 are empty placeholders.
+main graph scripts 05-07 are also empty placeholders.
+Do not merge Nirika-work as-is.
+```
+
+Main identity finding:
+
+``` text
+metadata rows: 56
+unique human station names: 54
+unique PM2.5 sensors: 56
+featured datasets: 56
+model-usable train+validation datasets: 51
+current station_mapping nodes: 54
+```
+
+Current `StationMapper` drops duplicate human station names, which
+collapses the three Kathmandu University PM2.5 sensors into one graph
+node. It also uses raw station names instead of canonical
+sensor-qualified dataset names, so it cannot join reliably to featured
+files.
+
+Recommended node policy:
+
+-   maintain a canonical 56-row node registry keyed by `dataset_name`;
+-   include `node_id`, `dataset_name`, human station name, location id,
+    PM2.5 sensor id, latitude, and longitude;
+-   use the 51 train+validation model-usable nodes as the first
+    supervised graph-model node set;
+-   preserve the five non-model-usable featured nodes in the canonical
+    registry for reproducibility and later expansion.
+
+Static graph audit:
+
+``` text
+K: 5
+current mapping nodes: 54
+static edge rows: 270
+symmetrized adjacency directed edges: 362
+symmetrized adjacency undirected pairs: 181
+static CSV rows missing reverse directions: 92
+```
+
+Recommendation: future dynamic graph candidate edges should be the
+directed expansion of the symmetric KNN union. In other words, build the
+undirected candidate pair set from the symmetrized KNN adjacency, then
+emit both `A -> B` and `B -> A` with their own directed bearings.
+
+Distance/bearing audit:
+
+``` text
+distance matrix symmetric: true
+distance diagonal zero: true
+distance recalculation error: 0.0 km
+bearing recalculation error: 0.0 degrees
+max reverse-bearing 180-degree error: 0.13 degrees
+```
+
+Dynamic wind edge design:
+
+``` text
+transport_direction_A(t) = (wind_direction_A(t) + 180) % 360
+delta_AB(t) = angular difference between transport_direction_A(t)
+              and bearing A -> B
+alignment_AB(t) = max(0, cos(delta_AB(t)))
+speed_factor_A(t) = wind_speed_A(t) / (wind_speed_A(t) + 5)
+distance_factor_AB = exp(-distance_AB / lambda_d)
+
+raw_weight_AB(t) =
+    candidate_AB * alignment_AB(t) * speed_factor_A(t) *
+    distance_factor_AB
+```
+
+Use source-node wind for `A -> B`, because the edge represents possible
+transport of pollution leaving source A toward B. Target wind can remain
+a node feature or later modifier, but should not control the primary
+directed transport edge.
+
+Edge-case policy:
+
+-   near-zero source wind `< 0.5 km/h`: weight 0 with `calm_wind` flag;
+-   wind pointing away/perpendicular (`delta >= 90 degrees`): alignment
+    0 and weight 0;
+-   missing PM2.5: keep graph edge computation separate, use node masks
+    and supervised-loss masks;
+-   missing weather: keep row with `missing_source_wind` flag and null or
+    zero dynamic weight;
+-   non-shared usable timestamps: build global hourly graph snapshots and
+    use masks rather than silently changing graph shape.
+
+Expected dynamic edge schema is documented in
+`docs/graph_design_audit.md`.
+
+Generated audit outputs:
+
+``` text
+data/processed/graph/design_audit/recommended_graph_nodes.csv
+data/processed/graph/design_audit/identity_summary.csv
+data/processed/graph/design_audit/coordinate_summary.csv
+data/processed/graph/design_audit/distance_bearing_summary.csv
+data/processed/graph/design_audit/static_graph_summary.csv
+data/processed/graph/design_audit/graph_design_audit.md
+```
+
+**Handover status:** Graph design audit is complete. Before implementing
+dynamic edges, correct graph mapping to sensor-qualified node identity
+and regenerate distance, bearing, and directed static candidate edges.

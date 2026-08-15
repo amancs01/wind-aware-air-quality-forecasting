@@ -1327,7 +1327,9 @@ First station-specific LSTM baseline trained on validation only and lost to Pers
         ↓
 Persistence-anchored residual LSTM beat Persistence/RF on validation
         ↓
-Next: wind-aware graph design and station interaction
+Graph design audit finalized node identity and dynamic edge rules
+        ↓
+Next: correct graph mapping/static candidates, then implement dynamic wind edges
 ```
 
 This sequence is much stronger than simply saying "we tried several machine-learning models."
@@ -1396,7 +1398,8 @@ Implemented and validated:
 - rolling-origin / expanding-window validation,
 - validation-only LSTM sequence dataset design,
 - first station-specific LSTM baseline,
-- persistence-anchored residual LSTM baseline.
+- persistence-anchored residual LSTM baseline,
+- graph design audit before dynamic wind edges.
 
 Current strongest findings:
 
@@ -1440,21 +1443,30 @@ On the same 22,477 matched validation timestamps, residual LSTM pooled
 RMSE was 10.588 versus Persistence 11.848, frozen RF 12.233, and direct
 LSTM 15.021. Residual LSTM beat Persistence on 49/51 stations, RF on
 41/51 stations, and direct LSTM on 49/51 stations.
+
+Graph design audit:
+Canonical featured data has 56 sensor-qualified PM2.5 datasets, but the
+current graph mapping has 54 nodes because duplicate human station names
+are dropped. The first supervised graph model should use the 51
+train+validation model-usable nodes while preserving a canonical 56-node
+registry. Static dynamic-edge candidates should be the directed expansion
+of the symmetric KNN union. Dynamic A->B wind edges should use source-node
+wind and transport direction `(wind_direction + 180) % 360`.
 ```
 
 Current next methodological direction:
 
-> Use the rolling-origin evidence to decide whether the next phase should
-> prioritize richer temporal modeling, a refined temporal evaluation
-> design, or wind-spatial interaction modeling.
+> Correct graph node identity and static candidate edges, then implement
+> dynamic wind edges using the finalized source-wind transport design.
 
 After temporal robustness is understood, likely future phases include:
 
-1. careful review/integration of graph work,
-2. wind-aware directed edge construction,
-3. residual temporal baseline integration,
-4. eventual GAT-GRU or related spatio-temporal architecture,
-5. targeted temporal diagnostics only if graph results require them.
+1. replace human-station graph mapping with sensor-qualified dataset
+   identity,
+2. regenerate distance, bearing, and directed static candidate edges,
+3. implement dynamic wind edge weights from source-node wind,
+4. integrate residual temporal baseline into graph-ready snapshots,
+5. eventual GAT-GRU or related spatio-temporal architecture.
 
 ---
 
@@ -1775,3 +1787,130 @@ This is now the strongest validation-only temporal baseline. Because it
 beats Persistence and frozen RF, the next research phase should move to
 wind-aware graph design and inter-station interaction rather than further
 station-specific LSTM tuning.
+
+---
+
+# 32. Graph design audit before dynamic wind edges
+
+Before implementing dynamic wind edges, the existing graph code and
+Nirika-work graph scripts 01-07 were audited. No dynamic edge generator,
+graph snapshots, sliding windows, GNN, or GAT model was implemented in
+this phase.
+
+The branch review found:
+
+```text
+Nirika-work graph scripts 01-04 match main.
+Nirika-work graph scripts 05-07 are empty placeholders.
+main graph scripts 05-07 are also empty placeholders.
+Do not merge Nirika-work as-is.
+```
+
+A reproducible audit helper was added:
+
+```text
+scripts/22_graph_design_audit.py
+scripts/analysis/graph_design_audit.py
+docs/graph_design_audit.md
+```
+
+The central issue is graph node identity. Current modeling data is
+sensor-qualified where necessary, but the existing `StationMapper` uses
+human station names and drops duplicates.
+
+Audit summary:
+
+```text
+metadata rows: 56
+unique human station names: 54
+unique PM2.5 sensors: 56
+featured datasets: 56
+model-usable train+validation datasets: 51
+current station_mapping nodes: 54
+```
+
+The three Kathmandu University PM2.5 sensors share the same human station
+name, so the current graph mapping collapses distinct datasets. The
+correct canonical registry should have 56 rows keyed by featured
+`dataset_name`, with `pm25_sensor_id`, `location_id`, latitude, and
+longitude retained. The first supervised graph model should use the 51
+train+validation model-usable nodes, while preserving the full 56-node
+registry for reproducibility.
+
+Distance and directed bearing calculations were verified for the current
+54-node artifacts:
+
+```text
+distance matrix symmetric: true
+distance diagonal zero: true
+max distance recalculation error: 0.0 km
+bearing diagonal zero: true
+max bearing recalculation error: 0.0 degrees
+max reverse-bearing 180-degree error: 0.13 degrees
+```
+
+These calculations are mathematically acceptable, but they must be
+regenerated after the node identity correction.
+
+The static KNN graph currently uses K=5 and symmetrizes the adjacency.
+However, the static edge CSV does not represent the same directed edge
+set as the adjacency:
+
+```text
+current static edge rows: 270
+symmetrized adjacency directed edges: 362
+symmetrized adjacency undirected pairs: 181
+static rows missing reverse directions: 92
+```
+
+For dynamic wind edges, the candidate edge table should be the directed
+expansion of the symmetric KNN union: build undirected candidate pairs
+from the symmetrized KNN adjacency, then emit both A->B and B->A with
+their own A-to-B bearings.
+
+The proposed dynamic edge design is:
+
+```text
+transport_direction_A(t) = (wind_direction_A(t) + 180) % 360
+
+delta_AB(t) = angular difference between transport_direction_A(t)
+              and bearing A->B
+
+alignment_AB(t) = max(0, cos(delta_AB(t)))
+speed_factor_A(t) = wind_speed_A(t) / (wind_speed_A(t) + 5)
+distance_factor_AB = exp(-distance_AB / lambda_d)
+
+raw_weight_AB(t) =
+    candidate_AB * alignment_AB(t) * speed_factor_A(t) *
+    distance_factor_AB
+```
+
+Use source-node wind for A->B because the edge represents possible
+transport of pollution leaving source A toward target B. Target wind may
+remain a node feature or later modifier, but it should not control the
+primary transport edge.
+
+Edge cases:
+
+```text
+near-zero wind (<0.5 km/h): weight 0 with calm_wind flag
+wind perpendicular/away from B: alignment 0, weight 0
+missing PM2.5: use node/target masks, do not impute only for graph shape
+missing weather: keep edge row with missing_source_wind flag
+non-shared timestamps: use global hourly snapshots plus masks
+```
+
+Before dynamic edge implementation, these graph scripts must be corrected:
+
+```text
+01_station_mapping.py: use sensor-qualified dataset identity
+02_distance_matrix.py: regenerate from corrected nodes
+03_bearing_matrix.py: regenerate directed bearings from corrected nodes
+04_static_graph.py: emit directed expansion of symmetric KNN union
+05_dynamic_edge_weights.py: implement only after the above corrections
+06_graph_snapshots.py and 07_sliding_windows.py: keep pending until
+dynamic edge schema is implemented
+```
+
+The full schema recommendation for future dynamic edge rows is in
+`docs/graph_design_audit.md`.
