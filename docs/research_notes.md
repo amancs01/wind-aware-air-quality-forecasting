@@ -868,6 +868,50 @@ row dropping.
 
 The full design contract is in `docs/graph_design_audit.md`.
 
+## Corrected Static Graph Foundation
+
+Graph scripts 01-04 were corrected and regenerated from the finalized
+graph design. Dynamic wind weights were not implemented yet.
+
+Corrected node registry:
+
+```text
+canonical nodes: 56
+unique dataset_name: true
+unique pm25_sensor_id: true
+model-usable train+validation nodes: 51
+missing coordinates: 0
+```
+
+The graph identity is now the canonical `dataset_name` with
+`pm25_sensor_id` retained. Human station names, `location_id`, latitude,
+and longitude are retained as metadata. This fixes the old
+station-name-based mapper that collapsed duplicate PM2.5 sensors.
+
+Regenerated geometry:
+
+```text
+distance matrix: 56x56, symmetric, zero diagonal
+undirected distance edges: 1,540
+bearing matrix: 56x56, directed
+directed bearing edges: 3,080
+```
+
+Regenerated static KNN graph:
+
+```text
+K: 5
+undirected candidate pairs after symmetric KNN union: 188
+directed static candidate edges: 376
+adjacency directed edges: 376
+static edge rows: 376
+candidate pairs missing reverse direction: 0
+```
+
+This means the static edge CSV and adjacency now describe exactly the
+same directed candidate set. Future dynamic wind weights can be computed
+on this static foundation.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

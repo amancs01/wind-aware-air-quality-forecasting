@@ -4,6 +4,35 @@ This audit finalizes the graph design contract before implementing
 dynamic wind edges. It reviews current `main` graph scripts and the
 `Nirika-work` graph scripts 01-07 without merging that branch.
 
+## Corrected Static Foundation Status
+
+Graph scripts 01-04 have now been corrected and the static graph
+foundation has been regenerated from the sensor-qualified node registry.
+Dynamic wind weights are still not implemented.
+
+Validation results:
+
+```text
+canonical nodes: 56
+unique dataset_name: true
+unique pm25_sensor_id: true
+model-usable train+validation nodes: 51
+missing coordinates: 0
+
+distance matrix: 56x56, symmetric, zero diagonal
+complete undirected distance edges: 1,540
+
+bearing matrix: 56x56, directed
+complete directed bearing edges: 3,080
+
+KNN K: 5
+static undirected candidate pairs: 188
+static directed candidate edges: 376
+adjacency directed edges: 376
+static edge rows: 376
+candidate pairs missing reverse direction: 0
+```
+
 ## Scope
 
 Reviewed scripts:
@@ -40,7 +69,7 @@ It writes ignored audit outputs under:
 data/processed/graph/design_audit/
 ```
 
-## Node Identity
+## Original Node Identity Finding
 
 Current canonical/featured data is sensor-qualified where needed. The
 graph must therefore not use human station name alone as identity.
@@ -63,11 +92,11 @@ The mismatch comes from two issues:
 - current mapping uses raw station names, while featured dataset names
   use sanitized names and sensor-qualified names for duplicates.
 
-Current `station_mapping.csv` is therefore not safe for graph modeling.
-It drops distinct PM2.5 sensors and cannot join one-to-one with featured
-dataset files.
+The old `station_mapping.csv` was therefore not safe for graph modeling.
+It dropped distinct PM2.5 sensors and could not join one-to-one with
+featured dataset files.
 
-Recommended policy:
+Implemented policy:
 
 - maintain a canonical 56-row graph node registry keyed by
   `dataset_name`, not by human `station`;
@@ -106,7 +135,7 @@ iteration order.
 
 ## Distance And Bearing
 
-Current formulas are correct for the current 54-node mapping:
+The original formulas were correct for the old 54-node mapping:
 
 ```text
 distance matrix shape: 54x54
@@ -126,7 +155,7 @@ The small reverse-bearing error is expected from spherical geometry and
 rounding; reverse initial bearings are approximately but not exactly
 180 degrees apart.
 
-Required correction before dynamic edges:
+Implemented correction before dynamic edges:
 
 - recompute distance and bearing matrices from the corrected
   sensor-qualified node registry;
@@ -135,7 +164,7 @@ Required correction before dynamic edges:
 
 ## Static KNN Graph
 
-Current static graph uses `K_NEIGHBORS = 5` and symmetrizes the
+The old static graph used `K_NEIGHBORS = 5` and symmetrized the
 adjacency matrix.
 
 Audit summary for current 54-node artifacts:
@@ -153,7 +182,7 @@ So the current adjacency and edge CSV do not represent the same directed
 edge set. The CSV stores each source's original five nearest outgoing
 neighbors, while the adjacency stores the symmetric union.
 
-Recommended candidate-edge representation:
+Implemented candidate-edge representation:
 
 - build an undirected candidate pair set from the symmetric union of KNN
   neighbors;
@@ -163,9 +192,8 @@ Recommended candidate-edge representation:
 - dynamic wind weights should be computed on this directed candidate
   edge table, not on the current one-way static CSV.
 
-For the current 54-node graph this would be 362 directed candidate rows.
-The exact count must be recomputed after switching to the corrected
-51-node supervised graph or 56-node canonical graph.
+For the corrected 56-node canonical graph, this produces 188 undirected
+candidate pairs and 376 directed candidate rows.
 
 ## Dynamic Wind Edge Formula
 
@@ -299,34 +327,31 @@ edge_active
 Keep `dynamic_weight` nullable if no normalization is applied; otherwise
 store the normalized value there and keep `raw_dynamic_weight` for audit.
 
-## Code That Must Be Corrected Before Dynamic Edges
+## Code Corrected Before Dynamic Edges
 
 1. `scripts/graph/01_station_mapping.py`
 
-   It must stop dropping duplicate human station names. It should build
-   graph identity from the canonical dataset naming rule:
-   sensor-qualified `dataset_name` where duplicate station names exist.
+   Corrected to preserve duplicate human station names by using the
+   canonical sensor-qualified `dataset_name` identity.
 
 2. `scripts/graph/02_distance_matrix.py`
 
-   It must read the corrected mapping and preserve `dataset_name`/sensor
-   identity in edge outputs or joinable metadata.
+   Corrected to read the sensor-qualified mapping and preserve
+   `dataset_name`/sensor identity in edge outputs.
 
 3. `scripts/graph/03_bearing_matrix.py`
 
-   It must read the corrected mapping and output directed bearings for
-   sensor-qualified node IDs.
+   Corrected to read the sensor-qualified mapping and output directed
+   bearings for sensor-qualified node IDs.
 
 4. `scripts/graph/04_static_graph.py`
 
-   It must emit the same edge set represented by its adjacency. For the
-   future directed dynamic graph, output the directed expansion of the
-   symmetric KNN union.
+   Corrected so adjacency and static edge CSV represent the same directed
+   expansion of the symmetric KNN union.
 
 5. `scripts/graph/05_dynamic_edge_weights.py`
 
-   It is currently empty and should be implemented only after the above
-   identity/static graph corrections are done.
+   It is currently empty and is the next graph implementation target.
 
 6. `scripts/graph/06_graph_snapshots.py` and
    `scripts/graph/07_sliding_windows.py`
@@ -336,11 +361,11 @@ store the normalized value there and keep `raw_dynamic_weight` for audit.
 
 ## Final Recommendation
 
-Do not implement dynamic wind edges on the current graph artifacts. First
-replace the station-name graph mapping with a sensor-qualified canonical
-node registry, regenerate distance/bearing/static candidate edges, and
-ensure the static edge CSV and adjacency matrix describe the same
-directed candidate set.
+Dynamic wind edges can now be implemented on the corrected static
+foundation. The station-name mapping has been replaced with a
+sensor-qualified canonical node registry, distance/bearing/static
+candidate edges have been regenerated, and the static edge CSV and
+adjacency matrix describe the same directed candidate set.
 
 For the first graph model, use the 51 train+validation model-usable nodes
 as the supervised node set while preserving the full 56-node canonical

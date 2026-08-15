@@ -2727,3 +2727,93 @@ data/processed/graph/design_audit/graph_design_audit.md
 **Handover status:** Graph design audit is complete. Before implementing
 dynamic edges, correct graph mapping to sensor-qualified node identity
 and regenerate distance, bearing, and directed static candidate edges.
+
+## 37. Corrected static graph foundation
+
+Updated and regenerated graph scripts 01-04:
+
+``` text
+scripts/graph/01_station_mapping.py
+scripts/graph/02_distance_matrix.py
+scripts/graph/03_bearing_matrix.py
+scripts/graph/04_static_graph.py
+```
+
+Dynamic wind weights were not implemented.
+
+Station mapping now preserves canonical sensor-qualified graph identity:
+
+``` text
+canonical nodes: 56
+unique dataset_name: true
+unique pm25_sensor_id: true
+model-usable train+validation nodes: 51
+missing coordinates: 0
+```
+
+Mapping identity:
+
+-   graph identity is `dataset_name` plus retained `pm25_sensor_id`;
+-   duplicate human station names are preserved;
+-   node ids are deterministic by sorted `dataset_name` and
+    `pm25_sensor_id`;
+-   human station name, `location_id`, latitude, and longitude are
+    retained;
+-   `model_usable` identifies the 51 train+validation nodes for the
+    first supervised graph model.
+
+Distance/bearing regeneration:
+
+``` text
+distance matrix: 56x56
+distance symmetric: true
+distance diagonal zero: true
+complete undirected distance edges: 1,540
+
+bearing matrix: 56x56
+bearing directed/non-symmetric: true
+complete directed bearing edges: 3,080
+```
+
+Distance and bearing edge outputs now preserve joinable source/target
+dataset names, PM2.5 sensor ids, and human station names.
+
+Static graph regeneration:
+
+``` text
+K: 5
+static undirected candidate pairs: 188
+static directed candidate edges: 376
+adjacency directed edges: 376
+static edge rows: 376
+adjacency edge set == static CSV edge set: true
+candidate pairs missing reverse direction: 0
+```
+
+Static graph policy now matches the finalized design: build the
+symmetric union of KNN pairs, then emit both `A -> B` and `B -> A` with
+directed bearing and distance metadata.
+
+Regenerated ignored artifacts:
+
+``` text
+data/metadata/station_mapping.csv
+data/metadata/station_mapping.json
+data/processed/graph/distance_matrix.csv
+data/processed/graph/distance_edges.csv
+data/processed/graph/bearing_matrix.csv
+data/processed/graph/bearing_edges.csv
+data/processed/graph/adjacency_matrix.csv
+data/processed/graph/static_graph.csv
+data/processed/graph/design_audit/*
+```
+
+Validation command:
+
+``` text
+python scripts/22_graph_design_audit.py
+```
+
+**Handover status:** Static graph foundation is corrected and validated.
+Next graph task can implement dynamic wind edge weights on top of this
+foundation.

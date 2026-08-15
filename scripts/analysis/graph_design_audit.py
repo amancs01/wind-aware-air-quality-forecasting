@@ -14,6 +14,7 @@ from config import (
     ML_VALIDATION_DIR,
     STATIONS_METADATA_FILE,
     STATIC_GRAPH_FILE,
+    STATION_MAPPING_FILE,
     TRAIN_DIR,
 )
 from utils import station_dataset_name
@@ -98,8 +99,9 @@ def build_canonical_node_table():
 
 
 def audit_identity(node_df):
-    current_mapping = pd.read_csv(GRAPH_DIR.parent.parent / "metadata" / "station_mapping.csv")
+    current_mapping = pd.read_csv(STATION_MAPPING_FILE)
     featured_names = {path.stem for path in FEATURED_DIR.glob("*.csv")}
+    mapping_names = set(current_mapping["dataset_name"])
 
     return pd.DataFrame([{
         "metadata_rows": len(node_df),
@@ -114,7 +116,7 @@ def audit_identity(node_df):
             node_df["station"].duplicated(keep=False).sum()
         ),
         "current_mapping_missing_featured_datasets": len(
-            featured_names - set(current_mapping["station"])
+            featured_names - mapping_names
         ),
     }])
 
@@ -139,7 +141,7 @@ def audit_coordinates(node_df):
 
 
 def audit_distance_bearing():
-    mapping = pd.read_csv(GRAPH_DIR.parent.parent / "metadata" / "station_mapping.csv")
+    mapping = pd.read_csv(STATION_MAPPING_FILE)
     distance_matrix = pd.read_csv(DISTANCE_MATRIX_FILE, index_col=0)
     bearing_matrix = pd.read_csv(BEARING_MATRIX_FILE, index_col=0)
     distance_matrix.index = distance_matrix.index.astype(int)

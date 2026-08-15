@@ -155,15 +155,18 @@ class BearingMatrixGenerator:
                 ] = bearing
 
                 if i != j:
-
                     edge_list.append({
-
                         "source": source["node_id"],
-
                         "target": target["node_id"],
-
+                        "source_node_id": source["node_id"],
+                        "target_node_id": target["node_id"],
+                        "source_dataset_name": source["dataset_name"],
+                        "target_dataset_name": target["dataset_name"],
+                        "source_pm25_sensor_id": source["pm25_sensor_id"],
+                        "target_pm25_sensor_id": target["pm25_sensor_id"],
+                        "source_station": source["station"],
+                        "target_station": target["station"],
                         "bearing_deg": bearing,
-
                     })
 
         edge_df = pd.DataFrame(

@@ -2,6 +2,45 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Corrected Static Graph Foundation
+
+### Changed
+- Updated `graph/01_station_mapping.py` to generate a 56-node
+  sensor-qualified canonical graph registry keyed by `dataset_name` and
+  `pm25_sensor_id`.
+- Updated `graph/02_distance_matrix.py` and `graph/03_bearing_matrix.py`
+  so edge outputs preserve joinable source/target dataset names, sensor
+  ids, and human station names.
+- Rebuilt `graph/04_static_graph.py` to form the symmetric KNN union and
+  emit both directed candidates for every pair.
+- Updated graph audit documentation to reflect the corrected foundation.
+
+### Regenerated
+- `data/metadata/station_mapping.csv`
+- `data/metadata/station_mapping.json`
+- `data/processed/graph/distance_matrix.csv`
+- `data/processed/graph/distance_edges.csv`
+- `data/processed/graph/bearing_matrix.csv`
+- `data/processed/graph/bearing_edges.csv`
+- `data/processed/graph/adjacency_matrix.csv`
+- `data/processed/graph/static_graph.csv`
+
+These generated artifacts are ignored by git, but are reproducible from
+scripts 01-04.
+
+### Validated
+- Canonical nodes: 56.
+- Unique `dataset_name` and `pm25_sensor_id`: true.
+- Model-usable train+validation nodes: 51.
+- Missing coordinates: 0.
+- Distance matrix is 56x56, symmetric, and has zero diagonal.
+- Bearing matrix is 56x56 and directed.
+- Static graph has 188 undirected candidate pairs and 376 directed
+  candidate edges.
+- Adjacency directed edge count equals static CSV row count: 376.
+- Every candidate pair has both directions.
+- Dynamic wind weights were not implemented.
+
 ## Milestone: Graph Design Audit
 
 ### Added

@@ -1329,7 +1329,9 @@ Persistence-anchored residual LSTM beat Persistence/RF on validation
         ↓
 Graph design audit finalized node identity and dynamic edge rules
         ↓
-Next: correct graph mapping/static candidates, then implement dynamic wind edges
+Static graph foundation corrected and regenerated
+        ↓
+Next: implement dynamic wind edges
 ```
 
 This sequence is much stronger than simply saying "we tried several machine-learning models."
@@ -1399,7 +1401,8 @@ Implemented and validated:
 - validation-only LSTM sequence dataset design,
 - first station-specific LSTM baseline,
 - persistence-anchored residual LSTM baseline,
-- graph design audit before dynamic wind edges.
+- graph design audit before dynamic wind edges,
+- corrected static graph foundation.
 
 Current strongest findings:
 
@@ -1452,21 +1455,27 @@ train+validation model-usable nodes while preserving a canonical 56-node
 registry. Static dynamic-edge candidates should be the directed expansion
 of the symmetric KNN union. Dynamic A->B wind edges should use source-node
 wind and transport direction `(wind_direction + 180) % 360`.
+
+Corrected static graph foundation:
+Graph scripts 01-04 now produce 56 canonical nodes, identify 51
+train+validation model-usable nodes, regenerate 56x56 distance and
+bearing matrices, and build 188 undirected KNN candidate pairs expanded
+to 376 directed static edges. The adjacency edge set and static edge CSV
+now match exactly.
 ```
 
 Current next methodological direction:
 
-> Correct graph node identity and static candidate edges, then implement
-> dynamic wind edges using the finalized source-wind transport design.
+> Implement dynamic wind edges using the corrected static graph
+> foundation and the finalized source-wind transport design.
 
 After temporal robustness is understood, likely future phases include:
 
-1. replace human-station graph mapping with sensor-qualified dataset
-   identity,
-2. regenerate distance, bearing, and directed static candidate edges,
-3. implement dynamic wind edge weights from source-node wind,
-4. integrate residual temporal baseline into graph-ready snapshots,
-5. eventual GAT-GRU or related spatio-temporal architecture.
+1. implement dynamic wind edge weights from source-node wind,
+2. integrate residual temporal baseline into graph-ready snapshots,
+3. validate graph snapshots and node/edge masks,
+4. eventual GAT-GRU or related spatio-temporal architecture,
+5. targeted graph/temporal diagnostics only if validation requires them.
 
 ---
 
@@ -1914,3 +1923,69 @@ dynamic edge schema is implemented
 
 The full schema recommendation for future dynamic edge rows is in
 `docs/graph_design_audit.md`.
+
+---
+
+# 33. Corrected static graph foundation
+
+The graph foundation was corrected and regenerated after the audit. This
+phase updated only scripts 01-04 and static artifacts; dynamic wind
+weights were not implemented.
+
+Updated scripts:
+
+```text
+scripts/graph/01_station_mapping.py
+scripts/graph/02_distance_matrix.py
+scripts/graph/03_bearing_matrix.py
+scripts/graph/04_static_graph.py
+```
+
+The corrected station mapping now uses canonical sensor-qualified
+identity:
+
+```text
+identity key: dataset_name with pm25_sensor_id retained
+canonical nodes: 56
+unique dataset_name: true
+unique pm25_sensor_id: true
+model-usable train+validation nodes: 51
+missing coordinates: 0
+```
+
+This fixes the previous `StationMapper` issue where duplicate human
+station names collapsed multiple PM2.5 sensors into one graph node.
+Human station name, `location_id`, latitude, and longitude are retained
+as metadata, and node IDs are deterministic by sorted `dataset_name` and
+`pm25_sensor_id`.
+
+Distance and bearing were regenerated from the corrected node registry:
+
+```text
+distance matrix: 56x56
+distance symmetric: true
+distance diagonal zero: true
+complete undirected distance edges: 1,540
+
+bearing matrix: 56x56
+bearing directed/non-symmetric: true
+complete directed bearing edges: 3,080
+```
+
+The static KNN graph was regenerated using K=5:
+
+```text
+symmetric KNN union: 188 undirected candidate pairs
+directed static candidate edges: 376
+adjacency directed edges: 376
+static edge CSV rows: 376
+candidate pairs missing reverse direction: 0
+```
+
+The important implementation correction is that the adjacency and static
+edge CSV now represent exactly the same directed candidate set. Each
+candidate pair appears as both A->B and B->A, with distance, directed
+bearing, source/target dataset names, source/target PM2.5 sensor IDs,
+and source/target human station names.
+
+This corrected foundation is now ready for dynamic wind edge weights.
