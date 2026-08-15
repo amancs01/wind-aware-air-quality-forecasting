@@ -2,6 +2,50 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Dynamic Wind Edge Weights
+
+### Added
+- Implemented `graph/05_dynamic_edge_weights.py`.
+- Generated raw, unnormalized dynamic wind-edge weights from the
+  corrected directed static candidate graph and source-node wind in
+  `data/processed/featured/`.
+- Added validation outputs for dynamic edge rules, reverse-direction
+  asymmetry, and the 51-node supervised subgraph degree distribution.
+
+### Method
+- Used source-node wind to control candidate `A -> B`.
+- Converted meteorological FROM direction to transport direction with
+  `(wind_direction + 180) % 360`.
+- Computed alignment as `max(0, cos(angle_difference))`.
+- Used `wind_speed / (wind_speed + 5)` as the speed factor.
+- Used `exp(-distance_km / lambda_d)` as the distance factor, where
+  `lambda_d` is the median static directed candidate distance.
+- Set calm wind below 0.5 km/h to zero weight with `calm_wind=True`.
+- Set missing source wind to zero weight with
+  `missing_source_wind=True`.
+- Did not use PM2.5, future timestamps, graph snapshots, row
+  normalization, or GNN training.
+
+### Validated
+- `lambda_d`: 1.930 km.
+- Timestamp count: 47,988.
+- Dynamic rows: 2,919,724.
+- Candidate edges: 376.
+- Supervised candidate edges: 326.
+- Active-edge percentage: 47.522%.
+- Zero-weight percentage: 52.478%.
+- Missing-wind percentage: 0.000%.
+- Calm-wind percentage: 1.867%.
+- Every generated row is a static candidate and no non-candidate edge is
+  present.
+- Weights are non-negative; alignment, speed, and distance factors are
+  within expected bounds.
+- Calm, missing, away, and perpendicular wind cases produce zero weight.
+- Every candidate pair has both directions, and opposite directions can
+  have different weights.
+- The supervised 51-node subgraph has no isolated nodes; min out-degree
+  is 4, median out-degree is 6, and max out-degree is 9.
+
 ## Milestone: Corrected Static Graph Foundation
 
 ### Changed

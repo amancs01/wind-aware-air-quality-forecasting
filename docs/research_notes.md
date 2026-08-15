@@ -912,6 +912,61 @@ This means the static edge CSV and adjacency now describe exactly the
 same directed candidate set. Future dynamic wind weights can be computed
 on this static foundation.
 
+## Dynamic Wind Edge Weights
+
+The first dynamic wind-edge stage was implemented using the corrected
+directed static candidate graph and source-node wind from
+`data/processed/featured/`. No graph snapshots or GNN training were
+implemented.
+
+The edge weight uses source-node wind for candidate `A -> B`:
+
+```text
+transport_direction = (source_wind_direction + 180) % 360
+alignment = max(0, cos(angle difference to bearing A->B))
+speed_factor = wind_speed / (wind_speed + 5)
+distance_factor = exp(-distance_km / lambda_d)
+raw_dynamic_weight = alignment * speed_factor * distance_factor
+```
+
+The computed `lambda_d` is the median static directed candidate distance:
+
+```text
+lambda_d = 1.930 km
+```
+
+Dynamic artifact summary:
+
+```text
+timestamps: 47,988
+rows: 2,919,724
+candidate edges: 376
+supervised candidate edges: 326
+active-edge percentage: 47.522%
+zero-weight percentage: 52.478%
+missing-wind percentage: 0.000%
+calm-wind percentage: 1.867%
+```
+
+All validation checks passed: every dynamic row is a static candidate,
+there are no non-candidate edges, all static candidates are present,
+weights are non-negative, alignment and scaling factors are bounded,
+calm/missing/away wind gives zero weight, reverse candidate directions
+exist, and opposite directions can have different weights.
+
+The 51-node supervised subgraph has no isolated nodes after
+`supervised_edge=True` filtering:
+
+```text
+min out-degree: 4
+median out-degree: 6
+max out-degree: 9
+isolated nodes: 0
+```
+
+The lowest-degree supervised node is Tarakeswor (SC-14)-GD Labs with
+out-degree 4 and in-degree 4, so KNN should not be changed silently.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

@@ -1331,7 +1331,9 @@ Graph design audit finalized node identity and dynamic edge rules
         ↓
 Static graph foundation corrected and regenerated
         ↓
-Next: implement dynamic wind edges
+Raw dynamic wind-edge weights implemented and validated
+        ↓
+Next: graph snapshots and node/edge masks
 ```
 
 This sequence is much stronger than simply saying "we tried several machine-learning models."
@@ -1402,7 +1404,8 @@ Implemented and validated:
 - first station-specific LSTM baseline,
 - persistence-anchored residual LSTM baseline,
 - graph design audit before dynamic wind edges,
-- corrected static graph foundation.
+- corrected static graph foundation,
+- raw dynamic wind-edge weights.
 
 Current strongest findings:
 
@@ -1462,18 +1465,27 @@ train+validation model-usable nodes, regenerate 56x56 distance and
 bearing matrices, and build 188 undirected KNN candidate pairs expanded
 to 376 directed static edges. The adjacency edge set and static edge CSV
 now match exactly.
+
+Dynamic wind-edge weights:
+Script 05 now generates raw unnormalized source-wind-controlled dynamic
+weights over all 376 static candidate edges. The output has 47,988
+timestamps and 2,919,724 rows. Active edges are 47.522%, zero-weight
+edges are 52.478%, missing wind is 0.000%, and all validation checks
+passed. The 51-node supervised subgraph has 326 supervised candidate
+edges, no isolated nodes, minimum out-degree 4, median out-degree 6, and
+maximum out-degree 9.
 ```
 
 Current next methodological direction:
 
-> Implement dynamic wind edges using the corrected static graph
-> foundation and the finalized source-wind transport design.
+> Build graph snapshots and node/edge masks using the corrected static
+> graph foundation and validated dynamic wind-edge weights.
 
 After temporal robustness is understood, likely future phases include:
 
-1. implement dynamic wind edge weights from source-node wind,
+1. design graph snapshots and node/edge masks,
 2. integrate residual temporal baseline into graph-ready snapshots,
-3. validate graph snapshots and node/edge masks,
+3. validate graph snapshot chronology and supervised-node masks,
 4. eventual GAT-GRU or related spatio-temporal architecture,
 5. targeted graph/temporal diagnostics only if validation requires them.
 
@@ -1989,3 +2001,91 @@ bearing, source/target dataset names, source/target PM2.5 sensor IDs,
 and source/target human station names.
 
 This corrected foundation is now ready for dynamic wind edge weights.
+
+---
+
+# 34. Dynamic wind-edge weights
+
+The first actual dynamic wind-edge stage was implemented after correcting
+the static graph foundation. This stage computes raw, auditable,
+source-wind-controlled edge weights. It does not row-normalize weights,
+build graph snapshots, create sliding windows, or train a graph model.
+
+Implementation:
+
+```text
+scripts/graph/05_dynamic_edge_weights.py
+```
+
+Inputs:
+
+```text
+data/processed/graph/static_graph.csv
+data/metadata/station_mapping.csv
+data/processed/featured/
+```
+
+For candidate edge A->B and timestamp `t`, source-node wind controls the
+edge:
+
+```text
+transport_direction = (source_wind_direction + 180) % 360
+angle_difference = circular difference between transport direction
+                   and bearing A->B
+alignment = max(0, cos(angle_difference))
+speed_factor = wind_speed / (wind_speed + 5)
+lambda_d = median distance across static directed candidates
+distance_factor = exp(-distance_km / lambda_d)
+raw_dynamic_weight = alignment * speed_factor * distance_factor
+```
+
+The run computed:
+
+```text
+lambda_d = 1.930 km
+timestamps = 47,988
+rows = 2,919,724
+candidate edges = 376
+supervised candidate edges = 326
+active-edge percentage = 47.522%
+zero-weight percentage = 52.478%
+missing-wind percentage = 0.000%
+calm-wind percentage = 1.867%
+```
+
+Validation checks passed:
+
+```text
+every generated row corresponds to a static candidate edge
+no non-candidate edges
+all static candidates present
+weights are never negative
+alignment is in [0, 1]
+speed_factor is in [0, 1)
+distance_factor is in (0, 1]
+calm wind gives zero weight
+away/perpendicular wind gives zero weight
+missing source wind gives zero weight
+candidate pairs missing reverse direction: 0
+opposite directions can have different weights
+future rows used: false
+```
+
+The supervised subgraph after filtering `supervised_edge=True` remains
+usable:
+
+```text
+supervised nodes = 51
+supervised candidate edges = 326
+min out-degree = 4
+median out-degree = 6
+max out-degree = 9
+isolated nodes = 0
+```
+
+The lowest-degree supervised node is `Tarakeswor (SC-14)-GD Labs`, with
+out-degree 4 and in-degree 4. This is acceptable and does not justify
+silently changing KNN.
+
+Next step: design graph snapshots and node/edge masks from the corrected
+static graph and validated dynamic edge weights.

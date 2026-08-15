@@ -2817,3 +2817,115 @@ python scripts/22_graph_design_audit.py
 **Handover status:** Static graph foundation is corrected and validated.
 Next graph task can implement dynamic wind edge weights on top of this
 foundation.
+
+## 38. First dynamic wind-edge stage
+
+Implemented the first actual dynamic wind-edge generator:
+
+``` text
+scripts/graph/05_dynamic_edge_weights.py
+```
+
+No graph snapshots, sliding windows, GNN, GAT, or model training were
+implemented.
+
+Inputs:
+
+``` text
+data/processed/graph/static_graph.csv
+data/metadata/station_mapping.csv
+data/processed/featured/
+```
+
+The dynamic stage keeps all 56 canonical nodes and all 376 directed
+static candidate edges. It also adds `supervised_edge =
+source_model_usable AND target_model_usable` so later graph snapshots can
+isolate the 51-node supervised cohort.
+
+Equation:
+
+``` text
+transport_direction = (source_wind_direction + 180) % 360
+angle_difference = circular difference between transport direction
+                   and bearing A->B
+alignment = max(0, cos(angle_difference))
+speed_factor = wind_speed / (wind_speed + 5)
+lambda_d = median static directed candidate distance = 1.930 km
+distance_factor = exp(-distance_km / lambda_d)
+raw_dynamic_weight = alignment * speed_factor * distance_factor
+```
+
+Rules enforced:
+
+-   source-node wind controls `A -> B`;
+-   no PM2.5 is used in edge-weight calculation;
+-   no future timestamps are used;
+-   `wind_speed < 0.5 km/h` gives weight 0 and `calm_wind=True`;
+-   missing source wind gives weight 0 and `missing_source_wind=True`;
+-   angle `>= 90 degrees` gives alignment 0 and weight 0;
+-   weights are raw and not row-normalized.
+
+Generated ignored artifacts:
+
+``` text
+data/processed/graph/dynamic_edge_weights.csv
+data/processed/graph/dynamic_edge_weights_summary.csv
+data/processed/graph/dynamic_edge_weights_validation.csv
+data/processed/graph/dynamic_supervised_degree.csv
+data/processed/graph/dynamic_reverse_direction_check.csv
+```
+
+Dynamic output summary:
+
+``` text
+timestamp count: 47,988
+total rows: 2,919,724
+candidate edges: 376
+supervised candidate edges: 326
+active-edge percentage: 47.522%
+zero-weight percentage: 52.478%
+missing-wind percentage: 0.000%
+calm-wind percentage: 1.867%
+opposite-direction weights can differ: true
+all validation checks passed: true
+```
+
+Validation checks:
+
+``` text
+every generated row corresponds to a static candidate edge: true
+no non-candidate edges: true
+all static candidates present: true
+weights never negative: true
+alignment in [0, 1]: true
+speed_factor in [0, 1): true
+distance_factor in (0, 1]: true
+calm wind gives zero weight: true
+away/perpendicular wind gives zero weight: true
+missing source wind gives zero weight: true
+candidate pairs missing reverse direction: 0
+uses future rows: false
+```
+
+Supervised 51-node subgraph after `supervised_edge=True`:
+
+``` text
+supervised nodes: 51
+supervised candidate edges: 326
+min out-degree: 4
+median out-degree: 6
+max out-degree: 9
+isolated nodes: 0
+```
+
+Lowest-degree supervised node:
+
+``` text
+Tarakeswor (SC-14)-GD Labs: out-degree 4, in-degree 4, total degree 8
+```
+
+This is not problematic enough to change KNN silently.
+
+**Handover status:** Dynamic wind-edge weights are implemented and
+validated as raw auditable edge weights. Next step: graph snapshot design
+and node/edge masking, not GNN training yet.

@@ -8,7 +8,8 @@ dynamic wind edges. It reviews current `main` graph scripts and the
 
 Graph scripts 01-04 have now been corrected and the static graph
 foundation has been regenerated from the sensor-qualified node registry.
-Dynamic wind weights are still not implemented.
+The first raw dynamic wind-edge stage is also implemented, while graph
+snapshots and GNN training remain unimplemented.
 
 Validation results:
 
@@ -32,6 +33,57 @@ adjacency directed edges: 376
 static edge rows: 376
 candidate pairs missing reverse direction: 0
 ```
+
+## Dynamic Wind Edge Implementation Status
+
+The first dynamic wind-edge stage has now been implemented in:
+
+```text
+scripts/graph/05_dynamic_edge_weights.py
+```
+
+It uses the corrected `static_graph.csv` candidate edge set,
+`station_mapping.csv` model-usable flags, and hourly source-node wind
+from `data/processed/featured/`. It does not build graph snapshots,
+sliding windows, or any GNN model.
+
+Generated outputs:
+
+```text
+data/processed/graph/dynamic_edge_weights.csv
+data/processed/graph/dynamic_edge_weights_summary.csv
+data/processed/graph/dynamic_edge_weights_validation.csv
+data/processed/graph/dynamic_supervised_degree.csv
+data/processed/graph/dynamic_reverse_direction_check.csv
+```
+
+Validation results:
+
+```text
+lambda_d: 1.930 km
+timestamp count: 47,988
+total rows: 2,919,724
+candidate edges: 376
+supervised candidate edges: 326
+active-edge percentage: 47.522%
+zero-weight percentage: 52.478%
+missing-wind percentage: 0.000%
+calm-wind percentage: 1.867%
+all validation checks passed: true
+```
+
+Supervised 51-node subgraph after filtering `supervised_edge=True`:
+
+```text
+min out-degree: 4
+median out-degree: 6
+max out-degree: 9
+isolated nodes: 0
+```
+
+The lowest-degree supervised node is
+`Tarakeswor (SC-14)-GD Labs`, with out-degree 4 and in-degree 4. This is
+not problematic enough to change KNN silently.
 
 ## Scope
 
