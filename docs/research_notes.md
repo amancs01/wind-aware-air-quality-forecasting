@@ -655,6 +655,91 @@ timestamp. Input tensors should have shape `(n_sequences, 24, 11)` for
 the recommended design, with one scalar next-hour PM2.5 target. Any
 scaler must be fit on training input rows only.
 
+## First LSTM Baseline
+
+The first station-specific LSTM baseline was implemented with PyTorch on
+the validated sequence-native dataset. It used train and validation only;
+the final test split was not evaluated.
+
+Runtime and architecture:
+
+```text
+PyTorch 2.13.0+cpu
+Device: CPU
+Input size: 11
+Window length: 24 hours
+Hidden size: 64
+Layers: 1
+Optimizer: Adam, learning_rate=0.001
+Loss: MSE
+Batch size: 64
+Max epochs: 50
+Early stopping patience: 5
+Seed: 42
+```
+
+The model was trained separately per station, matching the station-
+specific pattern used by the classical baselines. Input and target
+scalers were fit on each station's training sequences only, then applied
+unchanged to validation. Predictions were inverse-transformed before
+PM2.5 metrics were calculated.
+
+Stations:
+
+```text
+Trained: 51
+Skipped: 5
+Validation sequences in native LSTM cohort: 22,657
+Matched comparison rows: 22,477
+```
+
+Native LSTM validation metrics:
+
+```text
+Macro MAE 10.895
+Macro RMSE 15.112
+Macro median R2 0.713
+Pooled MAE 9.619
+Pooled RMSE 15.036
+Pooled R2 0.834
+```
+
+Matched validation comparison on identical target timestamps:
+
+```text
+LSTM:        pooled MAE 9.608, pooled RMSE 15.021, pooled R2 0.835
+Persistence: pooled MAE 7.142, pooled RMSE 11.848, pooled R2 0.897
+RandomForest: pooled MAE 7.286, pooled RMSE 12.233, pooled R2 0.890
+```
+
+Station RMSE wins:
+
+```text
+LSTM vs Persistence: 10 wins / 41 losses
+LSTM vs RF:           7 wins / 44 losses
+LSTM beat both:       4 stations
+```
+
+Best epoch summary:
+
+```text
+Mean best epoch: 16.3
+Median best epoch: 15
+Minimum: 1
+Maximum: 50
+Best epoch <= 5: 9 stations
+Best epoch >= 40: 2 stations
+```
+
+Interpretation: this first LSTM baseline is a valid sequence-model
+experiment, but it does not yet add useful temporal signal beyond the
+one-hour Persistence baseline or the frozen Random Forest. The result is
+consistent with the strong autocorrelation finding: a small
+station-specific LSTM can learn something, but not enough to beat the
+cheap current-PM2.5 forecast. The mixed best-epoch distribution and the
+large Balkumari train/validation gap suggest station-level instability
+and overfitting risk, especially for smaller datasets.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

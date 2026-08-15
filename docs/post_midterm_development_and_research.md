@@ -1323,6 +1323,8 @@ Rolling-origin validation showed RF helps in some windows but not all
         ↓
 Sequence dataset validation established featured data as the safe LSTM source
         ↓
+First station-specific LSTM baseline trained on validation only and lost to Persistence/RF
+        ↓
 Later: richer temporal models and wind-aware spatial interaction
 ```
 
@@ -1390,7 +1392,8 @@ Implemented and validated:
 - wind-component validator,
 - validation-only feature-ablation study,
 - rolling-origin / expanding-window validation,
-- validation-only LSTM sequence dataset design.
+- validation-only LSTM sequence dataset design,
+- first station-specific LSTM baseline.
 
 Current strongest findings:
 
@@ -1421,6 +1424,12 @@ Recommended first LSTM input shape is (n_sequences, 24, 11), using
 current PM2.5, cyclical time, weather, and physical wind components.
 Accepted sequence counts are 101,168 train, 22,657 validation, and
 22,672 test with zero accepted-window timestamp or split violations.
+
+First LSTM baseline:
+Native validation pooled RMSE 15.036, pooled MAE 9.619, pooled R2 0.834.
+On 22,477 matched validation timestamps, Persistence pooled RMSE was
+11.848, frozen RF pooled RMSE was 12.233, and LSTM pooled RMSE was
+15.021. LSTM beat Persistence on 10/51 stations and RF on 7/51 stations.
 ```
 
 Current next methodological direction:
@@ -1431,7 +1440,7 @@ Current next methodological direction:
 
 After temporal robustness is understood, likely future phases include:
 
-1. a sequence-model baseline such as LSTM if justified,
+1. diagnose why the first station-specific LSTM underperformed,
 2. targeted temporal feature experiments if needed,
 3. careful review/integration of graph work,
 4. wind-aware directed edge construction,
@@ -1523,3 +1532,139 @@ featured station files, storing station, split, input-start timestamp,
 input-end timestamp, and target timestamp. Materialize tensors from this
 index with shape `(n_sequences, 24, 11)` and scalar next-hour PM2.5
 targets. Fit scaling on training input rows only.
+
+---
+
+# 30. First LSTM baseline
+
+The first LSTM forecasting baseline was implemented after validating the
+sequence data design. This was intentionally a simple station-specific
+baseline, not a tuned sequence-model study.
+
+Implementation:
+
+```text
+scripts/20_lstm_baseline.py
+scripts/analysis/lstm_baseline.py
+```
+
+Runtime:
+
+```text
+PyTorch 2.13.0+cpu
+CUDA unavailable
+Device: CPU
+```
+
+The model used:
+
+```text
+input_size = 11
+hidden_size = 64
+num_layers = 1
+batch_first = True
+Linear output head
+Adam, learning_rate = 0.001
+MSE loss
+batch_size = 64
+max_epochs = 50
+early stopping patience = 5
+random seed = 42
+```
+
+Input windows were 24 consecutive hourly rows from
+`data/processed/featured/`, predicting PM2.5 one hour after the final
+input timestamp. The input columns were:
+
+```text
+pm2_5, hour_sin, hour_cos, month_sin, month_cos, temperature, humidity,
+pressure, dew_point, wind_u, wind_v
+```
+
+No lag or rolling columns were used. No test split was evaluated.
+
+Scalers were fit per station on training sequences only:
+
+```text
+input scaler: fit on training input values only
+target scaler: fit on training targets only
+validation: transformed with fixed train-fitted scalers
+metrics: calculated after inverse-transforming predictions
+```
+
+Training cohort:
+
+```text
+Stations trained: 51
+Stations skipped: 5
+Native validation sequences: 22,657
+Matched comparison rows: 22,477
+```
+
+Skipped stations:
+
+```text
+Kathmandu University__sensor_15286458
+Kathmandu University__sensor_15286975
+Kathmandu University__sensor_15286980
+Pulchowk (SC-15)-GD Labs
+Tarakeswor (SC-15)- GD Labs
+```
+
+Native LSTM validation metrics:
+
+```text
+Macro MAE: 10.895
+Macro RMSE: 15.112
+Macro median R2: 0.713
+Pooled MAE: 9.619
+Pooled RMSE: 15.036
+Pooled R2: 0.834
+```
+
+Matched validation comparison:
+
+```text
+LSTM pooled RMSE: 15.021
+Persistence pooled RMSE: 11.848
+Frozen RF pooled RMSE: 12.233
+
+LSTM pooled MAE: 9.608
+Persistence pooled MAE: 7.142
+Frozen RF pooled MAE: 7.286
+```
+
+Station-level RMSE wins:
+
+```text
+LSTM beat Persistence: 10/51
+LSTM beat RF: 7/51
+LSTM beat both: 4/51
+```
+
+Best-epoch behavior:
+
+```text
+mean best epoch: 16.3
+median best epoch: 15
+min best epoch: 1
+max best epoch: 50
+best epoch <= 5: 9 stations
+best epoch >= 40: 2 stations
+hit max epoch: 1 station
+```
+
+Interpretation:
+
+The first LSTM baseline is a valid sequence experiment, but it does not
+currently add useful temporal signal beyond Persistence or the frozen
+Random Forest. This is an important negative result: for one-hour-ahead
+PM2.5 forecasting, current PM2.5 remains extremely difficult to beat, and
+the simple station-specific LSTM is likely underpowered, unstable on
+small station datasets, or overfitting local validation periods.
+
+This result does not justify moving immediately to a Transformer. The
+next sequence-model step should be diagnostic: identify which stations
+benefit, inspect loss curves and target shifts, and consider whether a
+pooled LSTM, stronger regularization, or a much simpler sequence
+baseline is a better bridge before graph-aware modeling.

@@ -21,7 +21,8 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | XGBoost | Done |
 | Validation feature ablation | Done |
 | Rolling-origin validation | Done |
-| LSTM | ⬜ Not started |
+| LSTM sequence dataset validation | Done |
+| First station-specific LSTM baseline | Done |
 | Transformer | ⬜ Not started |
 | Graph construction (wind-weighted station graph) | ⬜ Not started |
 | GAT-GRU (wind-aware spatio-temporal model) | ⬜ Not started |
@@ -38,14 +39,42 @@ Models are evaluated in increasing order of complexity so that each one has to b
 
 All models share the same evaluation contract via `models/base_model.py`: load the test split, predict, and report MAE, RMSE, and R2 to per-model `metrics.csv`, `summary.csv`, and `predictions.csv` files. Tuned baselines use validation-only selection before final test evaluation.
 
+## LSTM Baseline Result
+
+The first LSTM baseline is complete as a validation-only experiment. It
+uses `data/processed/featured/`, 24-hour sequence-native windows, 11
+input features, and station-specific PyTorch LSTMs. It does not use
+handcrafted lag/rolling columns and does not evaluate the final test
+split.
+
+Validation result:
+
+```text
+Native LSTM validation sequences: 22,657
+Native LSTM pooled RMSE: 15.036
+Native LSTM pooled MAE: 9.619
+Native LSTM pooled R2: 0.834
+
+Matched validation rows: 22,477
+Persistence pooled RMSE: 11.848
+Frozen RF pooled RMSE: 12.233
+LSTM pooled RMSE: 15.021
+```
+
+The first LSTM does not yet justify moving directly to a more complex
+Transformer. Persistence and RF remain stronger on validation. Future
+sequence work should diagnose whether the issue is station-specific data
+sparsity, overfitting, architecture simplicity, or whether one-hour
+forecasting is already dominated by current PM2.5 persistence.
+
 ## Next Steps
 
-- Richer temporal modeling or rolling-origin validation for the strong
-  persistence/time-signal finding
+- Diagnose the LSTM failure mode before increasing sequence complexity:
+  compare per-station errors, inspect small-station behavior, and consider
+  a simpler sequence baseline or pooled model.
 - Wind/spatial interaction design, using validation evidence only and
   avoiding premature feature-set changes based on the already-observed
   test split
-- LSTM
 - Transformer
 - Graph construction from station geography + wind field
 - Wind-aware GAT-GRU

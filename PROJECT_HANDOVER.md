@@ -2276,3 +2276,166 @@ Recommended future dataset architecture:
 **Handover status:** LSTM sequence dataset validation is complete. The
 next step may be implementation of the actual dataset loader and a first
 LSTM baseline, but no LSTM training has been performed yet.
+
+## 34. First station-specific LSTM baseline
+
+Implemented the first validation-only LSTM forecasting baseline:
+
+``` text
+scripts/20_lstm_baseline.py
+scripts/analysis/lstm_baseline.py
+```
+
+The final test split was not evaluated.
+
+Runtime:
+
+``` text
+PyTorch: 2.13.0+cpu
+CUDA available: False
+Device used: CPU
+```
+
+Sequence design:
+
+``` text
+Source: data/processed/featured/
+Input window: 24 consecutive hourly rows
+Target: PM2.5 exactly 1 hour after final input timestamp
+Input size: 11
+Input columns:
+pm2_5, hour_sin, hour_cos, month_sin, month_cos, temperature, humidity,
+pressure, dew_point, wind_u, wind_v
+```
+
+The implementation reuses the exact sequence validity rules from the
+LSTM sequence validator. It does not build windows from prepared-row
+position and does not use handcrafted lag/rolling columns.
+
+Model configuration:
+
+``` text
+Station-specific LSTM
+hidden_size=64
+num_layers=1
+batch_first=True
+Linear head -> 1 PM2.5 prediction
+Adam learning_rate=0.001
+MSE loss
+batch_size=64
+max_epochs=50
+early stopping patience=5
+random seed=42
+```
+
+Scaling:
+
+-   input scaler fit on each station's training sequences only,
+-   target scaler fit on each station's training targets only,
+-   validation data used only after train-fitted scalers were fixed,
+-   predictions inverse-transformed before PM2.5 metrics.
+
+Stations:
+
+``` text
+Trained: 51
+Skipped: 5
+```
+
+Skipped stations:
+
+``` text
+Kathmandu University__sensor_15286458: fewer than 100 training sequences
+Kathmandu University__sensor_15286975: missing prepared split boundaries
+Kathmandu University__sensor_15286980: missing prepared split boundaries
+Pulchowk (SC-15)-GD Labs: missing prepared split boundaries
+Tarakeswor (SC-15)- GD Labs: fewer than 100 training sequences
+```
+
+Native LSTM validation cohort:
+
+``` text
+Validation sequences: 22,657
+Macro MAE: 10.895
+Macro RMSE: 15.112
+Macro median R2: 0.713
+Pooled MAE: 9.619
+Pooled RMSE: 15.036
+Pooled R2: 0.834
+```
+
+Matched validation cohort for fair comparison:
+
+``` text
+Matched validation rows: 22,477
+Unmatched native LSTM validation rows: 180
+
+LSTM:
+macro MAE 10.889, macro RMSE 15.103, macro median R2 0.717,
+pooled MAE 9.608, pooled RMSE 15.021, pooled R2 0.835
+
+Persistence:
+macro MAE 7.180, macro RMSE 11.186, macro median R2 0.769,
+pooled MAE 7.142, pooled RMSE 11.848, pooled R2 0.897
+
+Frozen Random Forest:
+macro MAE 7.503, macro RMSE 11.606, macro median R2 0.793,
+pooled MAE 7.286, pooled RMSE 12.233, pooled R2 0.890
+```
+
+Station win counts by RMSE on matched validation timestamps:
+
+``` text
+LSTM beats Persistence: 10 / 51 stations
+LSTM loses to Persistence: 41 / 51 stations
+
+LSTM beats Random Forest: 7 / 51 stations
+LSTM loses to Random Forest: 44 / 51 stations
+
+LSTM beats both Persistence and RF: 4 / 51 stations
+Median LSTM minus Persistence RMSE: +2.731
+Median LSTM minus RF RMSE: +2.352
+```
+
+Best-epoch distribution:
+
+``` text
+count 51, mean 16.3, median 15, min 1, max 50
+best_epoch <= 5: 9 stations
+best_epoch >= 40: 2 stations
+hit max epoch: 1 station
+```
+
+Interpretation:
+
+-   The first LSTM baseline is technically valid and follows the
+    sequence-data constraints.
+-   It does not currently add useful temporal signal beyond Persistence
+    or the frozen Random Forest.
+-   Persistence remains a very strong one-hour benchmark.
+-   The LSTM shows heterogeneous behavior: several stations stop very
+    early, one station reaches the maximum epoch, and the largest
+    train/validation loss gap is at Balkumari.
+-   Do not tune LSTM hyperparameters or evaluate test from this result
+    alone. A better next step is error diagnostics and possibly a
+    simpler sequence baseline, stronger regularization, or pooled
+    sequence modeling before moving to Transformer or graph work.
+
+Generated outputs:
+
+``` text
+results/lstm/validation_station_metrics.csv
+results/lstm/validation_summary.csv
+results/lstm/validation_predictions.csv
+results/lstm/validation_matched_predictions.csv
+results/lstm/validation_matched_summary.csv
+results/lstm/validation_station_win_counts.csv
+results/lstm/validation_win_summary.csv
+results/lstm/training_history.csv
+results/lstm/skipped_stations.csv
+results/lstm/lstm_validation_report.md
+```
+
+**Handover status:** First LSTM baseline is complete on train +
+validation only. Do not report any final-test LSTM result yet; none has
+been produced.

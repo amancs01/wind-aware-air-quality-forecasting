@@ -2,6 +2,54 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: First LSTM Baseline
+
+### Added
+- Added PyTorch-based station-specific LSTM baseline via
+  `20_lstm_baseline.py` and `analysis/lstm_baseline.py`.
+- Added `torch>=2.0.0` to `requirements.txt`.
+- Wrote outputs under `results/lstm/`: validation station metrics,
+  native validation summary, validation predictions, matched
+  LSTM/Persistence/RF predictions, matched summary, station win counts,
+  training history, skipped stations, and a Markdown report.
+
+### Method
+- Used only `data/processed/featured/` and the validated
+  sequence-native design.
+- Used 24 consecutive hourly input rows to predict PM2.5 exactly one
+  hour after the final input timestamp.
+- Used input columns: `pm2_5`, `hour_sin`, `hour_cos`, `month_sin`,
+  `month_cos`, `temperature`, `humidity`, `pressure`, `dew_point`,
+  `wind_u`, and `wind_v`.
+- Did not use handcrafted lag or rolling columns.
+- Trained station-specific LSTMs with input size 11, hidden size 64, one
+  LSTM layer, a linear prediction head, Adam at learning rate 0.001, MSE
+  loss, batch size 64, max 50 epochs, early stopping patience 5, and
+  random seed 42.
+- Fit input and target scalers on training sequences only and applied
+  them unchanged to validation.
+- Used train and validation only; the final test split was not
+  evaluated.
+- Compared LSTM with Persistence and frozen Random Forest on identical
+  validation target timestamps.
+
+### Findings
+- Runtime was PyTorch 2.13.0+cpu on CPU; CUDA was unavailable.
+- Trained 51 stations and skipped 5 stations.
+- Native LSTM validation cohort had 22,657 sequences.
+- Native LSTM metrics: macro MAE 10.895, macro RMSE 15.112, macro
+  median R2 0.713, pooled MAE 9.619, pooled RMSE 15.036, pooled R2
+  0.834.
+- Matched comparison used 22,477 validation rows.
+- On matched rows, Persistence had pooled RMSE 11.848, frozen Random
+  Forest had pooled RMSE 12.233, and LSTM had pooled RMSE 15.021.
+- LSTM beat Persistence on 10/51 stations and Random Forest on 7/51
+  stations; it beat both on 4 stations.
+- Best epoch median was 15; 9 stations had best epoch <= 5, 2 had best
+  epoch >= 40, and 1 reached epoch 50.
+- Conclusion: the first LSTM baseline is technically valid but does not
+  yet add useful temporal signal beyond Persistence or RF.
+
 ## Milestone: LSTM Sequence Dataset Validation
 
 ### Added
