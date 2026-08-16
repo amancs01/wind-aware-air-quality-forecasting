@@ -2603,3 +2603,58 @@ Report nodes without train/validation supervision explicitly.
 Do not treat the old global test split as pristine for graph modeling.
 Do not train GAT/GAT-GRU until this protocol is reviewed.
 ```
+
+---
+
+# 39. Policy-B per-node training support audit
+
+Before freezing Policy B, the 41-node core cohort was audited for
+per-node training support. This used only the existing
+`core_network_era` artifacts. No graph, split, mask, dataset, or model
+was changed.
+
+Train target-count distribution:
+
+```text
+min = 0
+Q1 = 991
+median = 1,790
+Q3 = 2,657
+max = 3,391
+```
+
+Bucketed train support:
+
+```text
+0 train targets:
+- Dhathutole, Handigaun: validation 252
+- Phora Durbar Kathman: validation 0
+
+1-23 train targets: none
+24-99 train targets: none
+
+100-499 train targets:
+- Ramkot (SC - 10) - GD Labs: train 145, validation 54
+- CEN-SR-25_ Patako Chowk, Patan Durbar Square: train 320,
+  validation 314
+- Balkumari(SC-28)- GD Labs: train 329, validation 58
+- Sorakhutte (SC-36)-GD Labs: train 470, validation 55
+
+>=500 train targets: 35 nodes
+```
+
+This audit uses train availability only. Validation counts are reported
+for context, but validation/test performance is not used to choose a
+threshold or cohort.
+
+Decision:
+
+```text
+Keep all 41 Policy-B nodes as graph/context nodes.
+Freeze a 39-node supervised forecast/evaluation cohort by excluding the
+two zero-train nodes from supervised loss and metrics.
+```
+
+This is defensible because only the two zero-train nodes are structurally
+problematic; the remaining 39 nodes all have at least 145 train targets,
+and there is no weak 1-99 train-target tail.

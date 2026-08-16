@@ -703,3 +703,31 @@ provides a much longer chronological training period than the all-node
 common era. Keep graph-specific split artifacts separate, keep masked
 node-level training/evaluation, and explicitly report the remaining core
 nodes without train/validation supervision.
+
+## Policy-B Supervised Cohort Refinement
+
+The 41-node Policy-B core network was audited for train supervision
+before freezing the graph protocol.
+
+```text
+train target count distribution:
+min 0, Q1 991, median 1,790, Q3 2,657, max 3,391
+```
+
+Only two core nodes have zero train targets:
+
+```text
+Dhathutole, Handigaun: train 0, validation 252
+Phora Durbar Kathman: train 0, validation 0
+```
+
+No nodes have 1-99 train targets; four nodes have 100-499 train targets;
+35 nodes have at least 500 train targets. Therefore the issue is limited
+to the two zero-train nodes rather than a broad low-support tail.
+
+Recommended graph protocol refinement: keep all 41 Policy-B nodes as
+context/message-passing nodes, but freeze a 39-node supervised forecast
+and evaluation cohort based on train availability only. The two
+zero-train nodes should be excluded from supervised loss and forecast
+metrics, while optionally remaining as context nodes when their input
+features exist.

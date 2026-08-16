@@ -1279,6 +1279,52 @@ the station-wise/global splits, keep masked node-level loss/evaluation,
 and explicitly report nodes without train/validation supervision. Do not
 train GAT/GAT-GRU until this protocol is reviewed.
 
+## Policy-B Per-Node Training Support Audit
+
+Before freezing Policy B, per-node train supervision was audited using
+the existing `core_network_era` artifacts only. No graph, split, mask,
+dataset, or model was changed.
+
+Train target-count distribution across the 41 Policy-B nodes:
+
+```text
+min: 0
+Q1: 991
+median: 1,790
+Q3: 2,657
+max: 3,391
+```
+
+Bucketed support:
+
+```text
+0 train targets:
+- Dhathutole, Handigaun: validation 252
+- Phora Durbar Kathman: validation 0
+
+1-23 train targets: none
+24-99 train targets: none
+
+100-499 train targets:
+- Ramkot (SC - 10) - GD Labs: train 145, validation 54
+- CEN-SR-25_ Patako Chowk, Patan Durbar Square: train 320, validation 314
+- Balkumari(SC-28)- GD Labs: train 329, validation 58
+- Sorakhutte (SC-36)-GD Labs: train 470, validation 55
+
+>=500 train targets: 35 nodes
+```
+
+This is a train-availability decision, not a validation/test-performance
+decision. The only structural issue is the two zero-train nodes; the
+other 39 nodes have at least 145 train targets, and there is no weak
+1-99 target tail.
+
+Recommended refinement: keep all 41 Policy-B nodes as graph/context
+nodes, but freeze a 39-node supervised forecast/evaluation cohort by
+excluding the two zero-train nodes from supervised loss and metrics. The
+two excluded nodes may remain available for message-passing context when
+their inputs exist.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

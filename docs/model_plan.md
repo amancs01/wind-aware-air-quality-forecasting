@@ -159,6 +159,22 @@ review, because it preserves a large fixed spatial cohort and avoids the
 tiny all-node common era. GAT/GAT-GRU training should remain blocked
 until the graph-specific split and cohort protocol are frozen.
 
+Policy-B per-node training support audit:
+
+```text
+41 context nodes
+train target distribution: min 0, Q1 991, median 1,790, Q3 2,657, max 3,391
+zero-train nodes: 2
+nodes with 1-99 train targets: 0
+nodes with 100-499 train targets: 4
+nodes with >=500 train targets: 35
+```
+
+Recommended refinement: keep all 41 nodes as graph/context nodes, but
+freeze a 39-node supervised forecast/evaluation cohort by excluding the
+two zero-train nodes from supervised loss and metrics. This choice is
+based on train availability only, not validation or test performance.
+
 ## Next Steps
 
 - Move toward graph construction and wind-aware station interaction,
@@ -168,6 +184,8 @@ until the graph-specific split and cohort protocol are frozen.
   test split
 - Review and freeze the graph-specific Policy B timeline protocol before
   training GAT/GAT-GRU.
+- Implement the graph dataset loader with 41 context nodes and a 39-node
+  supervised forecast/evaluation mask once the protocol is reviewed.
 - Defer Transformer work until graph design or residual sequence
   diagnostics justify it.
 - Build a graph dataset loader around the masked graph-window arrays

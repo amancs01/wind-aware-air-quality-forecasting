@@ -2,6 +2,29 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Policy-B Training Support Audit
+
+### Added
+- Documented a per-node training support audit for the existing
+  `core_network_era` artifacts.
+
+### Findings
+- Policy-B train target-count distribution across 41 nodes: min 0, Q1
+  991, median 1,790, Q3 2,657, max 3,391.
+- Two nodes have zero train targets: `Dhathutole, Handigaun` and
+  `Phora Durbar Kathman`.
+- No nodes fall in the 1-23 or 24-99 train-target buckets.
+- Four nodes fall in the 100-499 bucket.
+- Thirty-five nodes have at least 500 train targets.
+
+### Decision
+- Recommend keeping all 41 Policy-B nodes as graph/context nodes.
+- Recommend freezing a 39-node supervised forecast/evaluation cohort by
+  excluding the two zero-train nodes from supervised loss and metrics.
+- The recommendation uses train availability only, not validation/test
+  performance.
+- GAT/GAT-GRU training remains deferred.
+
 ## Milestone: Graph Experiment Timeline Redesign
 
 ### Added

@@ -3432,3 +3432,65 @@ Recommended graph-specific protocol, pending review:
     modeling;
 -   do not train GAT/GAT-GRU until this graph-specific protocol is
     reviewed.
+
+## 43. Policy-B per-node training support audit
+
+Audited per-node training support for the existing Policy-B
+`core_network_era` artifacts only. No graph, split, mask, dataset, or
+model was changed.
+
+Policy-B train target-count distribution across the 41 core nodes:
+
+``` text
+min: 0
+Q1: 991
+median: 1,790
+Q3: 2,657
+max: 3,391
+```
+
+Train target-count buckets, with validation counts shown only as
+descriptive support:
+
+``` text
+0 train targets:
+- Dhathutole, Handigaun: train 0, validation 252
+- Phora Durbar Kathman: train 0, validation 0
+
+1-23 train targets:
+- none
+
+24-99 train targets:
+- none
+
+100-499 train targets:
+- Ramkot (SC - 10) - GD Labs: train 145, validation 54
+- CEN-SR-25_ Patako Chowk, Patan Durbar Square: train 320, validation 314
+- Balkumari(SC-28)- GD Labs: train 329, validation 58
+- Sorakhutte (SC-36)-GD Labs: train 470, validation 55
+
+>=500 train targets:
+- 35 nodes
+```
+
+Interpretation based on train availability only:
+
+-   only the two zero-train nodes are structurally problematic for
+    supervised forecasting;
+-   the remaining 39 nodes all have at least 145 train targets;
+-   there is no weak tail in the 1-99 train-target range;
+-   using validation/test performance or test coverage is unnecessary
+    and must be avoided for this protocol choice.
+
+Recommended protocol refinement before GNN training:
+
+``` text
+Keep the full 41-node Policy-B graph as the context/message-passing
+graph, but freeze a 39-node supervised forecast/evaluation cohort by
+excluding the two zero-train nodes from supervised loss and evaluation.
+```
+
+The two excluded supervised-forecast nodes can remain as optional context
+nodes if their input features are available, but they should not count
+toward train/validation supervised forecast metrics unless a future
+protocol explicitly adds training supervision for them.
