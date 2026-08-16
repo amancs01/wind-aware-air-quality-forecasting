@@ -1143,6 +1143,80 @@ input timestamp, the target mask implies complete 24-hour node history,
 fixed 51-node ordering is preserved, edge ordering is consistent, and no
 future node features are used.
 
+## Graph-Window Coverage Imbalance Diagnosis
+
+Before GNN training, the existing graph-window artifacts were diagnosed
+with `scripts/analysis/graph_window_coverage_diagnosis.py` and
+`scripts/24_graph_window_coverage_diagnosis.py`. This was a read-only
+analysis: it did not alter the dataset, split, graph, masks, dynamic edge
+weights, snapshots, or window artifacts.
+
+The core result is that the current global 70/15/15 chronological split
+does not provide a viable spatial graph training regime:
+
+```text
+train: 10,561 usable windows, 13,238 targets, 1.25 targets/window
+validation: 4,096 usable windows, 6,326 targets, 1.54 targets/window
+test: 6,800 usable windows, 128,756 targets, 18.93 targets/window
+```
+
+Only four supervised nodes have any train/validation 24-hour graph-window
+targets:
+
+```text
+Dabali, Handigaun
+Dhathutole, Handigaun
+Embassy Kathmandu
+Phora Durbar Kathman
+```
+
+The other 47 supervised nodes first become graph-supervisable only in the
+test-era timeline.
+
+Coverage thresholds are reached only outside train/validation:
+
+```text
+>=5 target nodes: first reached 2025-09-20 05:00, train 0, validation 0
+>=10 target nodes: first reached 2025-09-21 09:00, train 0, validation 0
+>=20 target nodes: first reached 2025-10-15 12:00, train 0, validation 0
+>=30 target nodes: first reached 2025-12-10 13:00, train 0, validation 0
+>=40 target nodes: never reached
+```
+
+Factor decomposition:
+
+```text
+train node-time slots: 1,713,090
+train node-exists slots: 82,901
+train valid input slots: 31,309
+train PM2.5 missing while node exists: 51,592
+train weather missing while node exists: 0
+
+validation node-time slots: 367,098
+validation node-exists slots: 28,792
+validation valid input slots: 9,941
+validation PM2.5 missing while node exists: 18,851
+validation weather missing while node exists: 0
+```
+
+Interpretation:
+
+1. Station deployment/start-date effects dominate. Most nodes were not
+   present during the global train/validation periods.
+2. Ordinary PM2.5 missingness removes additional node-time slots after a
+   station exists.
+3. The 24-hour sequence-completeness rule further reduces supervision,
+   by design.
+4. Split-boundary rejection is minor and is not the source of the
+   imbalance.
+
+Methodology recommendation, based only on train+validation evidence: do
+not train the first spatial GNN on the current global 70/15/15 timeline.
+Defensible alternatives include a graph-specific chronological split over
+a sufficiently deployed period, a smaller train/validation-selected graph
+cohort, or a train/validation-selected minimum-supervised-target window
+threshold. Test coverage must not be used to choose those settings.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

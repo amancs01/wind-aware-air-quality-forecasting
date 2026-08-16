@@ -2,6 +2,49 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Graph Window Coverage Diagnosis
+
+### Added
+- Added `analysis/graph_window_coverage_diagnosis.py`.
+- Added wrapper `24_graph_window_coverage_diagnosis.py`.
+- Generated read-only diagnosis outputs under
+  `results/graph_window_coverage/`.
+
+### Method
+- Analyzed existing stage-06 snapshot and stage-07 graph-window
+  artifacts without changing the dataset, masks, graph, split, or window
+  representation.
+- Reported per-node first/last valid input timestamps, first/last valid
+  24-hour sequence-plus-target timestamps, and train/validation/test
+  supervised target counts.
+- Reported temporal coverage thresholds, monthly coverage, continuous
+  runs, and a factor decomposition for deployment/start-date effects,
+  PM2.5 missingness, 24-hour sequence completeness, and split-boundary
+  rejection.
+- Based methodology recommendations on train+validation evidence only.
+
+### Findings
+- Only 4 of 51 supervised nodes have any train/validation graph-window
+  targets.
+- The remaining 47 nodes first become graph-supervisable only in the
+  test-era timeline.
+- Train has 10,561 usable windows but only 13,238 supervised node-target
+  examples, or 1.25 targets/window.
+- Validation has 4,096 usable windows but only 6,326 supervised
+  node-target examples, or 1.54 targets/window.
+- Test has 6,800 usable windows and 128,756 supervised node-target
+  examples, or 18.93 targets/window.
+- Train and validation never reach >=5 supervised target nodes per
+  window; thresholds >=5, >=10, >=20, and >=30 are reached only in the
+  test-era timeline.
+- The dominant cause is station deployment/start-date mismatch,
+  compounded by PM2.5 missingness and the 24-hour sequence-completeness
+  rule. Weather missingness is zero in this decomposition, and
+  split-boundary rejection is minor.
+- The current global 70/15/15 timeline is not suitable for training a
+  spatial graph model; graph-specific alternatives should be selected
+  using train+validation evidence only.
+
 ## Milestone: Masked 24-Hour Graph Windows
 
 ### Added

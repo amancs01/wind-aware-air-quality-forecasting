@@ -555,6 +555,48 @@ the final input timestamp, target masks imply complete 24-hour input
 history, fixed 51-node order is preserved, edge ID/order is consistent
 across timestamps, and no future node features are used.
 
+## Graph Window Coverage Diagnosis
+
+The existing masked 24-hour graph windows were diagnosed before GNN
+training. This diagnosis did not change the graph, masks, splits,
+snapshots, dynamic edge weights, or window artifacts.
+
+Key result:
+
+```text
+train: 10,561 windows, 13,238 supervised targets, 1.25 targets/window
+validation: 4,096 windows, 6,326 supervised targets, 1.54 targets/window
+test: 6,800 windows, 128,756 supervised targets, 18.93 targets/window
+```
+
+Only four nodes have any train/validation 24-hour graph-window targets:
+
+```text
+Dabali, Handigaun
+Dhathutole, Handigaun
+Embassy Kathmandu
+Phora Durbar Kathman
+```
+
+The other 47 supervised nodes first become graph-supervisable only in the
+test-era timeline. Train and validation never reach five supervised
+target nodes per graph window.
+
+Cause decomposition:
+
+- station deployment/start-date mismatch is dominant;
+- PM2.5 missingness further reduces node-time availability after station
+  deployment;
+- the 24-hour sequence-completeness rule correctly removes nodes without
+  complete histories;
+- split-boundary rejection is minor;
+- weather missingness is not the cause in this artifact.
+
+Conclusion based on train+validation evidence only: the current global
+70/15/15 timeline is not suitable for training a spatial graph model. Do
+not use test coverage or test performance to choose a new graph period,
+node cohort, coverage threshold, architecture, or hyperparameter.
+
 ## Code Corrected Before Dynamic Edges
 
 1. `scripts/graph/01_station_mapping.py`
@@ -608,3 +650,8 @@ fixed-graph snapshot policy, because strict all-node synchronization
 produces zero usable timestamps. For temporal graph models, consume
 `graph_window_arrays.npz` through `graph_window_index.csv` rather than
 materializing duplicate overlapping 24-hour tensors.
+
+Before training any GNN, revise the graph-specific evaluation design
+using train+validation evidence only. The current global 70/15/15 split
+does not provide enough simultaneous train/validation supervision for a
+spatial graph learner.

@@ -3202,3 +3202,120 @@ no future node features used: true
 validated. The next graph task can implement a dataset loader/batching
 adapter for these artifacts, but should still avoid GNN training until
 the loader is inspected.
+
+## 41. Graph-window coverage imbalance diagnosis
+
+Implemented a read-only diagnosis of the existing stage-06 and stage-07
+artifacts:
+
+``` text
+scripts/analysis/graph_window_coverage_diagnosis.py
+scripts/24_graph_window_coverage_diagnosis.py
+```
+
+This analysis did not change the dataset, split, masks, graph, dynamic
+edges, snapshots, or window artifacts.
+
+Generated ignored diagnosis outputs:
+
+``` text
+results/graph_window_coverage/node_coverage_report.csv
+results/graph_window_coverage/window_coverage_by_time.csv
+results/graph_window_coverage/coverage_thresholds.csv
+results/graph_window_coverage/coverage_threshold_runs.csv
+results/graph_window_coverage/node_coverage_by_month.csv
+results/graph_window_coverage/coverage_factor_decomposition.csv
+results/graph_window_coverage/coverage_diagnosis_summary.csv
+results/graph_window_coverage/methodology_recommendation.md
+```
+
+Per-node result:
+
+``` text
+51 supervised nodes total
+4 nodes have any train and validation 24h graph-window targets
+47 nodes first become graph-supervisable only in the test-era timeline
+```
+
+The only nodes with train/validation graph-window supervision are:
+
+``` text
+Dabali, Handigaun
+Dhathutole, Handigaun
+Embassy Kathmandu
+Phora Durbar Kathman
+```
+
+Split-level coverage:
+
+``` text
+train: 10,561 usable windows, 13,238 targets, 1.25 targets/window
+validation: 4,096 usable windows, 6,326 targets, 1.54 targets/window
+test: 6,800 usable windows, 128,756 targets, 18.93 targets/window
+```
+
+Train/validation never reach even 5 supervised target nodes per window:
+
+``` text
+>=5 nodes: first reached 2025-09-20 05:00, train 0, validation 0, test 5,869
+>=10 nodes: first reached 2025-09-21 09:00, train 0, validation 0, test 5,354
+>=20 nodes: first reached 2025-10-15 12:00, train 0, validation 0, test 4,335
+>=30 nodes: first reached 2025-12-10 13:00, train 0, validation 0, test 182
+>=40 nodes: never reached
+```
+
+Factor decomposition:
+
+``` text
+train node-time slots: 1,713,090
+train node-exists slots: 82,901
+train valid input slots: 31,309
+train PM2.5 missing while node exists: 51,592
+train weather missing while node exists: 0
+
+validation node-time slots: 367,098
+validation node-exists slots: 28,792
+validation valid input slots: 9,941
+validation PM2.5 missing while node exists: 18,851
+validation weather missing while node exists: 0
+
+test node-time slots: 367,149
+test node-exists slots: 310,243
+test valid input slots: 167,682
+test PM2.5 missing while node exists: 142,561
+test weather missing while node exists: 0
+```
+
+Why the imbalance exists:
+
+1. Station deployment/start-date effects dominate. Most of the 51-node
+   graph did not exist during the global train/validation periods.
+2. Ordinary PM2.5 missingness further removes many node-time slots once
+   stations exist.
+3. The 24-hour sequence-completeness rule is intentionally strict and
+   reduces supervision to nodes with complete recent history.
+4. Split-boundary rejection is minor: 1 train-boundary rejection and 24
+   validation-boundary rejections.
+
+Methodology conclusion using train+validation evidence only:
+
+``` text
+The current global 70/15/15 timeline is not suitable for training a
+spatial graph model. Train and validation supervision is effectively
+single-node most of the time, so a spatial GNN would not learn or
+validate meaningful multi-station spatial behavior.
+```
+
+Defensible graph-specific alternatives to review before implementation:
+
+-   create a graph-specific chronological split over a period where
+    enough supervised nodes are deployed and observable;
+-   choose a smaller graph cohort using train+validation availability
+    only, then freeze it before any test evaluation;
+-   select a minimum-supervised-target window threshold using
+    train+validation only;
+-   use non-spatial temporal/per-node baselines for sparse early periods
+    and reserve graph modeling for synchronized deployment periods.
+
+Do not use test coverage or test performance to choose the new cutoff,
+threshold, graph cohort, or hyperparameters.
