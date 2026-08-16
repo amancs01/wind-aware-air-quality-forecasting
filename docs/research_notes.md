@@ -1041,6 +1041,108 @@ features are used, every dynamic edge is a supervised static candidate,
 edge IDs map back to the correct nodes, and raw dynamic weights remain
 unchanged and non-negative.
 
+## Masked 24-Hour Graph Windows
+
+The masked spatio-temporal graph window index was implemented in
+`scripts/graph/07_sliding_windows.py`. It consumes snapshot artifacts
+from stage 06 and creates a compact future-GNN dataset representation
+without duplicating full overlapping 24-hour tensors.
+
+Window definition:
+
+```text
+input snapshots: t-23 ... t
+window length: 24 consecutive hours
+target: residual_pm25(t+1) attached to final timestamp t
+```
+
+A node contributes supervised loss only if its own 24-hour input history
+is complete:
+
+```text
+sequence_input_valid = input_valid at all 24 input timestamps
+supervised_target_valid = sequence_input_valid AND target_valid at final t
+```
+
+Compact artifacts:
+
+```text
+graph_window_arrays.npz
+graph_window_index.csv
+graph_window_summary.csv
+graph_window_validation.csv
+graph_window_target_distribution.csv
+graph_window_continuous_runs.csv
+graph_window_node_order.csv
+graph_window_edge_order.csv
+graph_window_rejections.csv
+```
+
+`graph_window_arrays.npz` stores node and edge snapshots once:
+
+```text
+node_features: (47,987, 51, 11)
+edge_weights: (47,987, 326)
+window_target_valid_mask: (21,457, 51)
+compressed size: about 12.0 MB
+uncompressed array footprint: about 209.1 MB
+window index size: about 2.2 MB
+```
+
+Usable windows:
+
+```text
+train: 10,561 windows, 13,238 supervised node-target examples
+validation: 4,096 windows, 6,326 supervised node-target examples
+test: 6,800 windows, 128,756 supervised node-target examples
+all: 21,457 windows, 148,320 supervised node-target examples
+```
+
+The test split is indexed for dataset completeness only. It must not be
+used for model selection or configuration decisions.
+
+Targets per usable window:
+
+```text
+train: min 1, median 1, max 3
+validation: min 1, median 1, max 3
+test: min 1, median 22, max 39
+all: min 1, median 1, max 39
+```
+
+Window threshold distribution:
+
+```text
+>=1 target: 21,457 windows
+>=10 targets: 5,354 windows
+>=20 targets: 4,335 windows
+>=30 targets: 182 windows
+>=40 targets: 0 windows
+```
+
+Rejected candidate windows:
+
+```text
+too-short 24h history: 23
+non-hourly continuity: 0
+split crossing: 49
+zero valid supervised targets: 26,458
+```
+
+Longest continuous usable runs:
+
+```text
+train: 774 windows from 2023-07-17 18:00 to 2023-08-18 23:00
+validation: 1,382 windows from 2025-07-19 09:00 to 2025-09-14 22:00
+test: 2,467 windows from 2026-01-05 17:00 to 2026-04-18 11:00
+```
+
+Validation passed: every accepted window has 24 hourly snapshots, no
+window crosses a split boundary, targets are exactly t+1 after the final
+input timestamp, the target mask implies complete 24-hour node history,
+fixed 51-node ordering is preserved, edge ordering is consistent, and no
+future node features are used.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

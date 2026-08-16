@@ -3060,3 +3060,145 @@ split-boundary crossing target timestamps excluded: 3
 implemented and validated. Next graph step should consume the masked
 snapshot artifacts to design graph model batching or sliding temporal
 windows. Do not train a GNN until that dataset loader is reviewed.
+
+## 40. Masked 24-hour spatio-temporal graph windows
+
+Implemented compact 24-hour graph window indexing:
+
+``` text
+scripts/graph/07_sliding_windows.py
+```
+
+This stage consumes outputs from `06_graph_snapshots.py`. It does not
+train GAT, GAT-GRU, or any graph model. It also does not impute missing
+values, row-normalize edge weights, or use the test split for
+model/configuration decisions.
+
+Window definition:
+
+``` text
+input graph snapshots: t-23 ... t
+window length: 24 consecutive hourly snapshots
+prediction target: residual_pm25(t+1) already attached to final timestamp t
+```
+
+The window target remains:
+
+``` text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+A node is a supervised target in a window only when:
+
+``` text
+sequence_input_valid = input_valid for that node at all 24 input hours
+supervised_target_valid = sequence_input_valid AND target_valid at final t
+```
+
+This explicitly prevents a node from becoming a supervised graph target
+when its own 24-hour input history is incomplete.
+
+Compact artifacts:
+
+``` text
+data/processed/graph/snapshots/graph_window_arrays.npz
+data/processed/graph/snapshots/graph_window_index.csv
+data/processed/graph/snapshots/graph_window_summary.csv
+data/processed/graph/snapshots/graph_window_validation.csv
+data/processed/graph/snapshots/graph_window_target_distribution.csv
+data/processed/graph/snapshots/graph_window_continuous_runs.csv
+data/processed/graph/snapshots/graph_window_node_order.csv
+data/processed/graph/snapshots/graph_window_edge_order.csv
+data/processed/graph/snapshots/graph_window_rejections.csv
+```
+
+The `.npz` stores reusable arrays once:
+
+``` text
+node_features: (47,987, 51, 11), float32
+input_valid_mask: (47,987, 51), bool
+target_valid_mask: (47,987, 51), bool
+residual_targets: (47,987, 51), float32
+edge_weights: (47,987, 326), float32
+edge_valid_mask: (47,987, 326), bool
+edge_active_mask: (47,987, 326), bool
+window_sequence_input_valid_mask: (21,457, 51), bool
+window_target_valid_mask: (21,457, 51), bool
+```
+
+Overlapping 24-hour feature and edge tensors are not duplicated. Future
+dataset code should slice snapshot arrays using `start_idx:end_idx+1`
+from `graph_window_index.csv`.
+
+Storage:
+
+``` text
+compressed graph_window_arrays.npz: 12.0 MB
+uncompressed array memory footprint: about 209.1 MB
+graph_window_index.csv: about 2.2 MB
+```
+
+Usable windows:
+
+``` text
+train: 10,561 windows, 13,238 supervised node-target examples
+validation: 4,096 windows, 6,326 supervised node-target examples
+test: 6,800 windows, 128,756 supervised node-target examples
+all: 21,457 windows, 148,320 supervised node-target examples
+```
+
+The test split is indexed only for dataset construction completeness and
+must not be used for model or configuration decisions.
+
+Targets per usable window:
+
+``` text
+train: min 1, median 1, max 3
+validation: min 1, median 1, max 3
+test: min 1, median 22, max 39
+all: min 1, median 1, max 39
+```
+
+Threshold distribution:
+
+``` text
+windows with >=1 target: 21,457
+windows with >=10 targets: 5,354
+windows with >=20 targets: 4,335
+windows with >=30 targets: 182
+windows with >=40 targets: 0
+```
+
+Rejected candidate windows:
+
+``` text
+too-short 24h history: 23
+non-hourly continuity: 0
+split crossing: 49
+zero valid supervised targets: 26,458
+```
+
+Longest continuous usable runs:
+
+``` text
+train: 2023-07-17 18:00 to 2023-08-18 23:00, 774 windows
+validation: 2025-07-19 09:00 to 2025-09-14 22:00, 1,382 windows
+test: 2026-01-05 17:00 to 2026-04-18 11:00, 2,467 windows
+```
+
+Validation checks:
+
+``` text
+every accepted window has 24 hourly snapshots: true
+no split crossing: true
+target exactly t+1 after final input: true
+target mask implies complete 24h input history: true
+fixed 51-node ordering preserved: true
+edge IDs/order consistent across timestamps: true
+no future node features used: true
+```
+
+**Handover status:** Masked 24-hour graph windows are indexed and
+validated. The next graph task can implement a dataset loader/batching
+adapter for these artifacts, but should still avoid GNN training until
+the loader is inspected.

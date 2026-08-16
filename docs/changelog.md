@@ -2,6 +2,48 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Masked 24-Hour Graph Windows
+
+### Added
+- Implemented `graph/07_sliding_windows.py`.
+- Added compact graph-window arrays and an index file under
+  `data/processed/graph/snapshots/`.
+- Preserved snapshot-level node features, input masks, target masks,
+  residual targets, dynamic raw edge weights, edge masks, node ordering,
+  and edge ordering for future graph dataset loading.
+
+### Method
+- Built 24-hour windows over consecutive global hourly graph snapshots.
+- Used `t-23 ... t` as inputs and the already-attached
+  `residual_pm25(t+1)` target at final timestamp `t`.
+- Required all 24 input timestamps to be hourly and in the same
+  chronological split.
+- Required the t+1 target to remain in that same split.
+- Allowed missing nodes through explicit masks.
+- Required each supervised target node to have complete 24-hour input
+  history.
+- Did not duplicate full 24-hour tensors for every overlapping window.
+- Did not impute missing values, train a graph model, or use test for
+  model/configuration decisions.
+
+### Validated
+- Usable windows: train 10,561, validation 4,096, test 6,800, all
+  21,457.
+- Supervised node-target examples: train 13,238, validation 6,326, test
+  128,756, all 148,320.
+- Targets per window: train median 1 max 3; validation median 1 max 3;
+  test median 22 max 39.
+- Window target thresholds: >=1 target 21,457 windows, >=10 targets
+  5,354, >=20 targets 4,335, >=30 targets 182, >=40 targets 0.
+- Rejected candidates: 23 too-short histories, 0 non-hourly continuity,
+  49 split crossings, and 26,458 zero-target windows.
+- Longest usable runs: train 774 windows, validation 1,382 windows, test
+  2,467 windows.
+- Every accepted window has exactly 24 hourly snapshots, does not cross a
+  split boundary, targets exactly t+1, target masks imply complete 24h
+  input history, fixed 51-node ordering is preserved, edge order is
+  consistent, and no future node features are used.
+
 ## Milestone: Graph Snapshot Synchronization
 
 ### Added

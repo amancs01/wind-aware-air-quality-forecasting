@@ -2231,3 +2231,151 @@ This result is scientifically important: the graph problem is not a
 dense fully synchronized 51-station panel. It is a sparse but fixed-node
 spatiotemporal forecasting problem, so masks are part of the dataset
 definition rather than a modeling convenience.
+
+---
+
+# 36. Masked 24-hour spatio-temporal graph windows
+
+The masked graph snapshot representation was extended into 24-hour
+spatio-temporal graph windows for future temporal GNN experiments. This
+stage creates dataset artifacts only. It does not train GAT, GAT-GRU, or
+any graph model.
+
+Implementation:
+
+```text
+scripts/graph/07_sliding_windows.py
+```
+
+The stage consumes outputs from `06_graph_snapshots.py` and preserves
+the same 51-node canonical order and 326 supervised directed candidate
+edges.
+
+Window definition:
+
+```text
+input graph snapshots: t-23 ... t
+window length: 24 consecutive hours
+prediction target: residual_pm25(t+1) at final timestamp t
+```
+
+The target remains the residual formulation:
+
+```text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+The key mask rule is node-specific:
+
+```text
+sequence_input_valid = input_valid for that node at all 24 input hours
+supervised_target_valid = sequence_input_valid AND target_valid at final t
+```
+
+Therefore, a node cannot contribute supervised loss merely because its
+final target exists. It must also have a complete 24-hour input history.
+
+The representation is compact. It does not duplicate full 24-hour
+feature and edge tensors for every overlapping window. Instead it stores
+snapshot arrays once and creates a window index.
+
+Generated artifacts:
+
+```text
+data/processed/graph/snapshots/graph_window_arrays.npz
+data/processed/graph/snapshots/graph_window_index.csv
+data/processed/graph/snapshots/graph_window_summary.csv
+data/processed/graph/snapshots/graph_window_validation.csv
+data/processed/graph/snapshots/graph_window_target_distribution.csv
+data/processed/graph/snapshots/graph_window_continuous_runs.csv
+data/processed/graph/snapshots/graph_window_node_order.csv
+data/processed/graph/snapshots/graph_window_edge_order.csv
+data/processed/graph/snapshots/graph_window_rejections.csv
+```
+
+Stored array shapes:
+
+```text
+node_features: (47,987, 51, 11)
+input_valid_mask: (47,987, 51)
+target_valid_mask: (47,987, 51)
+residual_targets: (47,987, 51)
+edge_weights: (47,987, 326)
+edge_valid_mask: (47,987, 326)
+edge_active_mask: (47,987, 326)
+window_sequence_input_valid_mask: (21,457, 51)
+window_target_valid_mask: (21,457, 51)
+```
+
+Approximate storage:
+
+```text
+compressed graph_window_arrays.npz = 12.0 MB
+uncompressed array memory footprint = 209.1 MB
+graph_window_index.csv = 2.2 MB
+```
+
+Usable windows:
+
+```text
+train = 10,561 windows, 13,238 supervised node-target examples
+validation = 4,096 windows, 6,326 supervised node-target examples
+test = 6,800 windows, 128,756 supervised node-target examples
+all = 21,457 windows, 148,320 supervised node-target examples
+```
+
+The test split is indexed for completeness only. It must not be used for
+model choice, configuration choice, tuning, or early stopping decisions.
+
+Targets per usable window:
+
+```text
+train: min 1, median 1, max 3
+validation: min 1, median 1, max 3
+test: min 1, median 22, max 39
+all: min 1, median 1, max 39
+```
+
+Threshold distribution:
+
+```text
+windows with >=1 target = 21,457
+windows with >=10 targets = 5,354
+windows with >=20 targets = 4,335
+windows with >=30 targets = 182
+windows with >=40 targets = 0
+```
+
+Rejected candidate windows:
+
+```text
+too-short 24h history = 23
+non-hourly continuity = 0
+split crossing = 49
+zero valid supervised targets = 26,458
+```
+
+Longest continuous usable runs:
+
+```text
+train: 2023-07-17 18:00 to 2023-08-18 23:00, 774 windows
+validation: 2025-07-19 09:00 to 2025-09-14 22:00, 1,382 windows
+test: 2026-01-05 17:00 to 2026-04-18 11:00, 2,467 windows
+```
+
+Validation checks passed:
+
+```text
+every accepted window has 24 hourly snapshots: true
+no split crossing: true
+target exactly t+1 after final input: true
+target mask implies complete 24h input history: true
+fixed 51-node ordering preserved: true
+edge IDs/order consistent across timestamps: true
+no future node features used: true
+```
+
+The main modeling implication is that the graph learner will need to
+handle highly sparse train/validation target supervision. The future
+loader should use the stored window index and masks directly rather than
+filtering to dense synchronized windows.

@@ -472,6 +472,89 @@ used, every dynamic edge is a supervised static candidate, source/target
 edge IDs map to the correct nodes, and raw dynamic weights remain
 unchanged and non-negative.
 
+## Masked 24-Hour Window Implementation Status
+
+`scripts/graph/07_sliding_windows.py` now converts the masked graph
+snapshots into a compact 24-hour spatio-temporal graph-window
+representation for future GNN work. It still does not train GAT,
+GAT-GRU, or any graph model.
+
+Window:
+
+```text
+input snapshots: t-23 ... t
+target: residual_pm25(t+1) at final timestamp t
+```
+
+Accepted windows must have 24 consecutive hourly snapshots, stay inside
+one chronological split, keep the final `t+1` target in that same split,
+and have at least one supervised target node.
+
+Node-level supervised mask:
+
+```text
+sequence_input_valid = input_valid for the node at all 24 input hours
+supervised_target_valid = sequence_input_valid AND target_valid at final t
+```
+
+This rule is important: a node with a valid final target is not a valid
+supervised target unless its own 24-hour input history is complete.
+
+Compact artifacts:
+
+```text
+graph_window_arrays.npz
+graph_window_index.csv
+graph_window_summary.csv
+graph_window_validation.csv
+graph_window_target_distribution.csv
+graph_window_continuous_runs.csv
+graph_window_node_order.csv
+graph_window_edge_order.csv
+graph_window_rejections.csv
+```
+
+The array artifact stores snapshot tensors once and window masks
+compactly:
+
+```text
+node_features: (47,987, 51, 11)
+input_valid_mask: (47,987, 51)
+target_valid_mask: (47,987, 51)
+residual_targets: (47,987, 51)
+edge_weights: (47,987, 326)
+edge_valid_mask: (47,987, 326)
+edge_active_mask: (47,987, 326)
+window_sequence_input_valid_mask: (21,457, 51)
+window_target_valid_mask: (21,457, 51)
+```
+
+Approximate storage:
+
+```text
+compressed graph_window_arrays.npz: 12.0 MB
+uncompressed arrays: 209.1 MB
+graph_window_index.csv: 2.2 MB
+```
+
+Usable windows:
+
+```text
+train: 10,561 windows, 13,238 supervised node-target examples
+validation: 4,096 windows, 6,326 supervised node-target examples
+test: 6,800 windows, 128,756 supervised node-target examples
+all: 21,457 windows, 148,320 supervised node-target examples
+```
+
+The test split is indexed only so the dataset artifacts are complete. It
+must not be used for model selection, architecture decisions, or tuning.
+
+Validation passed: every accepted window has 24 hourly snapshots, no
+accepted window crosses a split boundary, targets are exactly t+1 after
+the final input timestamp, target masks imply complete 24-hour input
+history, fixed 51-node order is preserved, edge ID/order is consistent
+across timestamps, and no future node features are used.
+
 ## Code Corrected Before Dynamic Edges
 
 1. `scripts/graph/01_station_mapping.py`
@@ -506,20 +589,22 @@ unchanged and non-negative.
 
 7. `scripts/graph/07_sliding_windows.py`
 
-   Still pending. It should remain unimplemented until the masked graph
-   snapshot dataset loader/batching design is reviewed.
+   Implemented. It creates compact masked 24-hour graph-window arrays and
+   an index for future graph dataset loaders.
 
 ## Final Recommendation
 
-Dynamic wind edges and graph snapshot synchronization are now
-implemented on the corrected static foundation. The station-name mapping
-has been replaced with a sensor-qualified canonical node registry,
-distance/bearing/static candidate edges have been regenerated, and the
-static edge CSV and adjacency matrix describe the same directed
-candidate set.
+Dynamic wind edges, graph snapshot synchronization, and masked 24-hour
+window indexing are now implemented on the corrected static foundation.
+The station-name mapping has been replaced with a sensor-qualified
+canonical node registry, distance/bearing/static candidate edges have
+been regenerated, and the static edge CSV and adjacency matrix describe
+the same directed candidate set.
 
 For the first graph model, use the 51 train+validation model-usable nodes
 as the supervised node set while preserving the full 56-node canonical
 registry for reproducibility and future data expansion. Use the masked
 fixed-graph snapshot policy, because strict all-node synchronization
-produces zero usable timestamps.
+produces zero usable timestamps. For temporal graph models, consume
+`graph_window_arrays.npz` through `graph_window_index.csv` rather than
+materializing duplicate overlapping 24-hour tensors.
