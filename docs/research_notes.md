@@ -1217,6 +1217,68 @@ a sufficiently deployed period, a smaller train/validation-selected graph
 cohort, or a train/validation-selected minimum-supervised-target window
 threshold. Test coverage must not be used to choose those settings.
 
+## Graph Experiment Timeline Redesign
+
+The graph timeline was redesigned with
+`scripts/analysis/graph_experiment_timeline_redesign.py` and
+`scripts/25_graph_experiment_timeline_redesign.py`. This analysis used
+station deployment and data-availability timing only. It did not train a
+model, inspect graph-model performance, overwrite station-wise splits, or
+modify the graph artifacts.
+
+The old global 2021-2026 test split has already been inspected for graph
+coverage, so it is no longer a pristine graph-model test split. No graph
+model performance has been inspected yet.
+
+Policy A, all-node common era:
+
+```text
+nodes: 51
+era: 2026-05-10 16:00 to 2026-07-11 22:00
+duration: 62.3 days
+train/validation/test timestamps: 1,046 / 224 / 225
+usable windows: train 971, validation 200, test 201
+supervised targets: train 14,855, validation 4,608, test 4,352
+mean target nodes/window: train 15.30, validation 23.04, test 21.65
+median target nodes/window: train 20, validation 23, test 22
+nodes with train targets: 45/51
+nodes with validation targets: 28/51
+PM2.5 missing after deployment: 44,003 / 76,245 node-exists slots
+```
+
+Policy A keeps every node but produces a very short graph era and poor
+validation representation across the cohort.
+
+Policy B, core-network era:
+
+```text
+nodes: 41
+selection: earliest timestamp where >=80% of nodes have begun producing
+           valid 24h sequence targets
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+duration: 227.3 days
+train/validation/test timestamps: 3,819 / 818 / 819
+usable windows: train 3,691, validation 718, test 795
+supervised targets: train 73,662, validation 5,018, test 14,542
+mean target nodes/window: train 19.96, validation 6.99, test 18.29
+median target nodes/window: train 21, validation 2, test 18
+nodes with train targets: 39/41
+nodes with validation targets: 37/41
+PM2.5 missing after deployment: 107,272 / 223,696 node-exists slots
+```
+
+Policy B is the more scientifically defensible candidate because it
+keeps a large fixed spatial network while providing a much longer
+chronological training period. Its weakness is that intermittent PM2.5
+missingness still leaves 2/41 core nodes without train targets and 4/41
+without validation targets.
+
+Recommended graph-specific protocol, pending review: use Policy B as the
+candidate graph-era protocol, store graph-specific splits separately from
+the station-wise/global splits, keep masked node-level loss/evaluation,
+and explicitly report nodes without train/validation supervision. Do not
+train GAT/GAT-GRU until this protocol is reviewed.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

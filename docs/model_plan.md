@@ -26,7 +26,7 @@ This document tracks the modeling roadmap: what's done, what's next, and the pla
 | Residual station-specific LSTM baseline | Done |
 | Transformer | ⬜ Not started |
 | Graph design audit | Done |
-| Graph construction (wind-weighted station graph) | ⬜ Not started |
+| Graph construction (wind-weighted station graph) | In progress |
 | GAT-GRU (wind-aware spatio-temporal model) | ⬜ Not started |
 | Explainability | ⬜ Not started |
 
@@ -131,6 +131,34 @@ Before implementing dynamic edges, regenerate the mapping, distance
 matrix, bearing matrix, and static candidate edge list from the corrected
 sensor-qualified node registry. See `docs/graph_design_audit.md`.
 
+## Graph Timeline Protocol
+
+The original global 2021-2026 70/15/15 split is not suitable for graph
+training because train and validation graph windows contain too few
+simultaneously supervised nodes. The old global test split has also been
+inspected for graph coverage, so it is no longer a pristine graph-model
+test split. No graph-model performance has been inspected.
+
+Graph timeline redesign evaluated two deployment/data-availability
+policies without training a model:
+
+```text
+Policy A, all-node common era:
+51 nodes, 2026-05-10 16:00 to 2026-07-11 22:00, 62.3 days
+train/validation/test usable windows: 971 / 200 / 201
+nodes with train/validation targets: 45/51 and 28/51
+
+Policy B, core-network era:
+41 nodes, 2025-11-26 15:00 to 2026-07-11 22:00, 227.3 days
+train/validation/test usable windows: 3,691 / 718 / 795
+nodes with train/validation targets: 39/41 and 37/41
+```
+
+Policy B is the recommended graph-specific candidate protocol, pending
+review, because it preserves a large fixed spatial cohort and avoids the
+tiny all-node common era. GAT/GAT-GRU training should remain blocked
+until the graph-specific split and cohort protocol are frozen.
+
 ## Next Steps
 
 - Move toward graph construction and wind-aware station interaction,
@@ -138,9 +166,10 @@ sensor-qualified node registry. See `docs/graph_design_audit.md`.
 - Wind/spatial interaction design, using validation evidence only and
   avoiding premature feature-set changes based on the already-observed
   test split
-- Correct graph node identity and static candidate edge representation
-  before dynamic wind edges.
+- Review and freeze the graph-specific Policy B timeline protocol before
+  training GAT/GAT-GRU.
 - Defer Transformer work until graph design or residual sequence
   diagnostics justify it.
-- Graph construction from station geography + wind field
-- Wind-aware GAT-GRU
+- Build a graph dataset loader around the masked graph-window arrays
+  after the protocol is frozen.
+- Wind-aware GAT-GRU only after protocol review.

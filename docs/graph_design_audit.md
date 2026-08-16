@@ -655,3 +655,51 @@ Before training any GNN, revise the graph-specific evaluation design
 using train+validation evidence only. The current global 70/15/15 split
 does not provide enough simultaneous train/validation supervision for a
 spatial graph learner.
+
+## Graph Experiment Timeline Redesign
+
+Two graph-era policies were evaluated using station deployment and
+data-availability timing only. No graph model was trained, no graph-model
+performance was inspected, and existing station-wise/global splits were
+not overwritten.
+
+The old global 2021-2026 test split has already been inspected for graph
+coverage. It is therefore no longer a pristine graph-model test split,
+although no graph-model performance has been inspected yet.
+
+Policy A: all-node common era.
+
+```text
+nodes: 51
+era start: 2026-05-10 16:00
+era end: 2026-07-11 22:00
+duration: 62.3 days
+train/validation/test usable windows: 971 / 200 / 201
+train/validation/test supervised targets: 14,855 / 4,608 / 4,352
+mean target nodes/window: 15.30 / 23.04 / 21.65
+median target nodes/window: 20 / 23 / 22
+nodes with train targets: 45/51
+nodes with validation targets: 28/51
+```
+
+Policy B: core-network era.
+
+```text
+nodes: 41
+era start: 2025-11-26 15:00
+era end: 2026-07-11 22:00
+duration: 227.3 days
+train/validation/test usable windows: 3,691 / 718 / 795
+train/validation/test supervised targets: 73,662 / 5,018 / 14,542
+mean target nodes/window: 19.96 / 6.99 / 18.29
+median target nodes/window: 21 / 2 / 18
+nodes with train targets: 39/41
+nodes with validation targets: 37/41
+```
+
+Recommendation pending review: use Policy B as the graph-specific
+candidate protocol because it keeps a large fixed spatial cohort and
+provides a much longer chronological training period than the all-node
+common era. Keep graph-specific split artifacts separate, keep masked
+node-level training/evaluation, and explicitly report the remaining core
+nodes without train/validation supervision.

@@ -3319,3 +3319,116 @@ Defensible graph-specific alternatives to review before implementation:
 
 Do not use test coverage or test performance to choose the new cutoff,
 threshold, graph cohort, or hyperparameters.
+
+## 42. Graph experiment timeline redesign
+
+Implemented a graph-specific timeline redesign analysis:
+
+``` text
+scripts/analysis/graph_experiment_timeline_redesign.py
+scripts/25_graph_experiment_timeline_redesign.py
+```
+
+This analysis used only station deployment and data-availability timing.
+It did not train any model, inspect graph-model performance, compare
+model performance, overwrite station-wise splits, or modify graph
+artifacts.
+
+Generated separate ignored graph-protocol artifacts:
+
+``` text
+results/graph_experiment_timeline/graph_timeline_policy_summary.csv
+results/graph_experiment_timeline/graph_timeline_splits.csv
+results/graph_experiment_timeline/graph_timeline_policy_nodes.csv
+results/graph_experiment_timeline/graph_timeline_monthly_coverage.csv
+results/graph_experiment_timeline/graph_timeline_recommendation.md
+```
+
+Important test-status note:
+
+``` text
+The old global 2021-2026 test split has already been inspected for graph
+coverage. It is no longer a pristine graph-model test split. No graph
+model performance has been inspected yet.
+```
+
+Policy A: all-node common era:
+
+``` text
+policy: keep all 51 supervised nodes
+era start: 2026-05-10 16:00
+era end: 2026-07-11 22:00
+duration: 1,495 hours / 62.3 days
+
+train: 2026-05-10 16:00 to 2026-06-23 05:00
+validation: 2026-06-23 06:00 to 2026-07-02 13:00
+test: 2026-07-02 14:00 to 2026-07-11 22:00
+
+train usable windows: 971
+validation usable windows: 200
+test usable windows: 201
+
+train supervised targets: 14,855
+validation supervised targets: 4,608
+test supervised targets: 4,352
+
+mean target nodes/window: train 15.30, validation 23.04, test 21.65
+median target nodes/window: train 20, validation 23, test 22
+
+cohort nodes with train targets: 45/51
+cohort nodes with validation targets: 28/51
+PM2.5 missing after deployment in era: 44,003 / 76,245 node-exists slots
+```
+
+Policy A keeps every node but creates a tiny common era and gives only
+28/51 nodes validation supervision.
+
+Policy B: core-network era:
+
+``` text
+policy: start when >=80% of the 51 nodes have begun producing valid 24h
+        sequence targets, then freeze that cohort
+core cohort size: 41 nodes
+era start: 2025-11-26 15:00
+era end: 2026-07-11 22:00
+duration: 5,456 hours / 227.3 days
+
+train: 2025-11-26 15:00 to 2026-05-04 17:00
+validation: 2026-05-04 18:00 to 2026-06-07 19:00
+test: 2026-06-07 20:00 to 2026-07-11 22:00
+
+train usable windows: 3,691
+validation usable windows: 718
+test usable windows: 795
+
+train supervised targets: 73,662
+validation supervised targets: 5,018
+test supervised targets: 14,542
+
+mean target nodes/window: train 19.96, validation 6.99, test 18.29
+median target nodes/window: train 21, validation 2, test 18
+
+cohort nodes with train targets: 39/41
+cohort nodes with validation targets: 37/41
+PM2.5 missing after deployment in era: 107,272 / 223,696 node-exists slots
+```
+
+Policy B is more scientifically defensible than Policy A because it has
+a much longer chronological training era and still preserves a large
+fixed spatial network. However, it is not perfect: 2/41 core nodes lack
+train targets and 4/41 lack validation targets due to intermittent PM2.5
+availability after deployment.
+
+Recommended graph-specific protocol, pending review:
+
+-   use Policy B as the graph-era candidate protocol;
+-   keep the 41-node core cohort fixed from 2025-11-26 15:00 through
+    2026-07-11 22:00;
+-   use the graph-specific chronological 70/15/15 split above as a
+    separate protocol artifact;
+-   continue using masked node-level training/evaluation;
+-   report nodes without train/validation supervision explicitly;
+-   do not treat the old global test split as pristine for graph
+    modeling;
+-   do not train GAT/GAT-GRU until this graph-specific protocol is
+    reviewed.

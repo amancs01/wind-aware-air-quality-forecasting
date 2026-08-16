@@ -2,6 +2,41 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Graph Experiment Timeline Redesign
+
+### Added
+- Added `analysis/graph_experiment_timeline_redesign.py`.
+- Added wrapper `25_graph_experiment_timeline_redesign.py`.
+- Generated separate graph-protocol artifacts under
+  `results/graph_experiment_timeline/`.
+
+### Method
+- Used station deployment and data-availability timing only.
+- Compared two graph-era policies without training any model or
+  inspecting graph-model performance.
+- Did not overwrite existing station-wise splits, results, masks, graph
+  snapshots, or graph-window artifacts.
+- Documented that the old global 2021-2026 test split has already been
+  inspected for graph coverage and is no longer a pristine graph-model
+  test split.
+
+### Findings
+- Policy A, all-node common era, starts at 2026-05-10 16:00, keeps 51
+  nodes, and lasts 62.3 days. It gives 971 train windows, 200 validation
+  windows, and 201 test windows. Only 45/51 nodes have train targets and
+  28/51 have validation targets.
+- Policy B, core-network era, starts at 2025-11-26 15:00, keeps a fixed
+  41-node cohort, and lasts 227.3 days. It gives 3,691 train windows,
+  718 validation windows, and 795 test windows. 39/41 nodes have train
+  targets and 37/41 have validation targets.
+- Policy B is the more scientifically defensible graph-era candidate
+  because it preserves a large fixed spatial cohort while avoiding the
+  tiny all-node common era.
+- Policy B still has intermittent PM2.5 missingness after deployment, so
+  nodes without train/validation supervision must be reported explicitly.
+- GAT/GAT-GRU training remains blocked until the graph-specific protocol
+  is reviewed.
+
 ## Milestone: Graph Window Coverage Diagnosis
 
 ### Added
