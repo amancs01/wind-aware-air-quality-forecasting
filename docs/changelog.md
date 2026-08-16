@@ -2,6 +2,41 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Frozen Policy-B Graph Dataset Protocol
+
+### Added
+- Added `analysis/freeze_policy_b_graph_protocol.py`.
+- Added wrapper `26_freeze_policy_b_graph_protocol.py`.
+- Generated separate graph-model artifacts under
+  `data/processed/graph/policy_b/`.
+
+### Method
+- Froze the Policy-B graph era from 2025-11-26 15:00 to 2026-07-11
+  22:00.
+- Kept 41 fixed graph/context nodes.
+- Kept Dhathutole, Handigaun and Phora Durbar Kathman as context nodes
+  but excluded them from supervised loss/evaluation.
+- Froze a 39-node supervised forecast/evaluation mask.
+- Preserved dynamic raw edge weights, node input masks, target masks,
+  edge masks, fixed node order, and fixed edge order.
+- Defined train-only scaling design metadata without fitting scalers.
+- Did not modify old global graph-window artifacts or station-wise
+  splits.
+- Did not train GAT/GNN.
+
+### Validated
+- Context nodes: 41.
+- Supervised forecast/evaluation nodes: 39.
+- Context directed edges: 204.
+- Era timestamps: 5,456.
+- Usable windows: train 3,691, validation 718, test 795.
+- Supervised targets after the 39-node mask: train 73,662, validation
+  4,766, test 14,542.
+- Zero-train context nodes cannot enter loss/metrics.
+- No split crossing, every target is exactly t+1, every supervised target
+  has complete 24-hour input history, no future information is used, and
+  fixed node/edge ordering is preserved.
+
 ## Milestone: Policy-B Training Support Audit
 
 ### Added

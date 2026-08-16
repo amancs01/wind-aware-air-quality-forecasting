@@ -3494,3 +3494,109 @@ The two excluded supervised-forecast nodes can remain as optional context
 nodes if their input features are available, but they should not count
 toward train/validation supervised forecast metrics unless a future
 protocol explicitly adds training supervision for them.
+
+## 44. Frozen Policy-B graph dataset protocol
+
+Implemented the frozen Policy-B graph-model protocol:
+
+``` text
+scripts/analysis/freeze_policy_b_graph_protocol.py
+scripts/26_freeze_policy_b_graph_protocol.py
+```
+
+This creates separate graph-model artifacts and does not modify the old
+global graph-window artifacts or station-wise splits. No GAT/GNN model
+was trained.
+
+Frozen protocol:
+
+``` text
+graph/context nodes: 41
+supervised forecast/evaluation nodes: 39
+context-only zero-train nodes:
+- Dhathutole, Handigaun
+- Phora Durbar Kathman
+
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+window length: 24 hours
+target: residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+context directed edges after 41-node filtering: 204
+```
+
+Graph-specific chronological splits:
+
+``` text
+train: 2025-11-26 15:00 to 2026-05-04 17:00, 3,819 timestamps
+validation: 2026-05-04 18:00 to 2026-06-07 19:00, 818 timestamps
+test: 2026-06-07 20:00 to 2026-07-11 22:00, 819 timestamps
+```
+
+Generated separate ignored artifacts:
+
+``` text
+data/processed/graph/policy_b/policy_b_graph_arrays.npz
+data/processed/graph/policy_b/policy_b_window_index.csv
+data/processed/graph/policy_b/policy_b_node_order.csv
+data/processed/graph/policy_b/policy_b_edge_order.csv
+data/processed/graph/policy_b/policy_b_split_boundaries.csv
+data/processed/graph/policy_b/policy_b_protocol_summary.csv
+data/processed/graph/policy_b/policy_b_protocol_validation.csv
+data/processed/graph/policy_b/policy_b_scaling_design.json
+data/processed/graph/policy_b/README.md
+```
+
+Array shapes:
+
+``` text
+node_features: (5,456, 41, 11)
+edge_weights: (5,456, 204)
+input_valid_mask: (5,456, 41)
+target_valid_mask_raw: (5,456, 41)
+window_sequence_input_valid_mask: (5,204, 41)
+window_target_valid_mask: (5,204, 41)
+supervised_node_mask: 39 true / 2 false
+loss_evaluation_node_mask: 39 true / 2 false
+```
+
+Window and supervised-target counts after excluding the two zero-train
+context nodes from loss/evaluation:
+
+``` text
+train: 3,691 windows, 73,662 supervised targets,
+       mean 19.96 targets/window, median 21
+validation: 718 windows, 4,766 supervised targets,
+            mean 6.64 targets/window, median 2
+test: 795 windows, 14,542 supervised targets,
+      mean 18.29 targets/window, median 18
+```
+
+Scaling design:
+
+``` text
+No scalers are fitted in this dataset-only stage.
+Future graph model loaders must fit input and target scalers on train
+windows only, using input_valid/window masks for inputs and
+window_target_valid_mask for residual targets.
+Validation/test data must not affect scaler parameters.
+```
+
+Validation checks:
+
+``` text
+exactly 41 context nodes: true
+exactly 39 supervised forecast nodes: true
+zero-train nodes excluded from loss/metrics: true
+no split crossing: true
+every target exactly t+1: true
+every supervised target has complete 24h input history: true
+no future information used: true
+fixed node ordering preserved: true
+fixed edge ordering preserved: true
+edge endpoints are context nodes: true
+era timestamps hourly: true
+```
+
+**Handover status:** The graph dataset protocol is now frozen as
+Policy-B with 41 context nodes and a 39-node supervised forecast/eval
+mask. Next graph work can implement a loader around these artifacts, but
+GAT/GNN training should still wait until the loader is validated.

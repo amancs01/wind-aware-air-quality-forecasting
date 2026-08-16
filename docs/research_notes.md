@@ -1325,6 +1325,71 @@ excluding the two zero-train nodes from supervised loss and metrics. The
 two excluded nodes may remain available for message-passing context when
 their inputs exist.
 
+## Frozen Policy-B Graph Dataset Protocol
+
+The final Policy-B graph dataset protocol was frozen with
+`scripts/analysis/freeze_policy_b_graph_protocol.py` and
+`scripts/26_freeze_policy_b_graph_protocol.py`. This created separate
+graph-model artifacts under `data/processed/graph/policy_b/` and did not
+modify old global graph-window artifacts or station-wise splits. No graph
+model was trained.
+
+Frozen graph protocol:
+
+```text
+context nodes: 41
+supervised forecast/evaluation nodes: 39
+context-only zero-train nodes:
+- Dhathutole, Handigaun
+- Phora Durbar Kathman
+
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+target: residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+window length: 24 hours
+context directed edges: 204
+```
+
+Graph-specific splits:
+
+```text
+train: 2025-11-26 15:00 to 2026-05-04 17:00
+validation: 2026-05-04 18:00 to 2026-06-07 19:00
+test: 2026-06-07 20:00 to 2026-07-11 22:00
+```
+
+Frozen arrays:
+
+```text
+node_features: (5,456, 41, 11)
+edge_weights: (5,456, 204)
+window_sequence_input_valid_mask: (5,204, 41)
+window_target_valid_mask: (5,204, 41)
+supervised_node_mask: 39 true / 2 false
+loss_evaluation_node_mask: 39 true / 2 false
+```
+
+Window counts after applying the 39-node supervised mask:
+
+```text
+train: 3,691 windows, 73,662 supervised targets
+validation: 718 windows, 4,766 supervised targets
+test: 795 windows, 14,542 supervised targets
+```
+
+The validation target count is lower than the earlier Policy-B diagnosis
+because Dhathutole's 252 validation-only targets are now correctly
+excluded from supervised loss/evaluation.
+
+Scaling remains design-only at this stage. Future graph loaders must fit
+input and residual-target scalers on train windows only, using the saved
+input/target masks. Validation and test observations must not influence
+scaling parameters.
+
+Validation passed: exactly 41 context nodes, exactly 39 supervised nodes,
+zero-train nodes excluded from loss/metrics, no split crossing, targets
+exactly t+1, complete 24-hour input history for every supervised target,
+no future information, and fixed node/edge ordering.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

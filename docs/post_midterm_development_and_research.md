@@ -2658,3 +2658,107 @@ two zero-train nodes from supervised loss and metrics.
 This is defensible because only the two zero-train nodes are structurally
 problematic; the remaining 39 nodes all have at least 145 train targets,
 and there is no weak 1-99 train-target tail.
+
+---
+
+# 40. Frozen Policy-B graph dataset protocol
+
+The final graph dataset protocol was frozen as a separate graph-model
+artifact set. This stage did not modify the old global graph-window
+artifacts or station-wise splits, and it did not train GAT/GNN.
+
+Implementation:
+
+```text
+scripts/analysis/freeze_policy_b_graph_protocol.py
+scripts/26_freeze_policy_b_graph_protocol.py
+```
+
+Frozen protocol:
+
+```text
+context graph nodes = 41
+supervised forecast/evaluation nodes = 39
+context-only zero-train nodes:
+- Dhathutole, Handigaun
+- Phora Durbar Kathman
+
+era = 2025-11-26 15:00 to 2026-07-11 22:00
+window length = 24 hours
+target = residual_pm25(t+1)
+context directed edges = 204
+```
+
+Graph-specific split boundaries:
+
+```text
+train = 2025-11-26 15:00 to 2026-05-04 17:00, 3,819 timestamps
+validation = 2026-05-04 18:00 to 2026-06-07 19:00, 818 timestamps
+test = 2026-06-07 20:00 to 2026-07-11 22:00, 819 timestamps
+```
+
+Generated artifacts:
+
+```text
+data/processed/graph/policy_b/policy_b_graph_arrays.npz
+data/processed/graph/policy_b/policy_b_window_index.csv
+data/processed/graph/policy_b/policy_b_node_order.csv
+data/processed/graph/policy_b/policy_b_edge_order.csv
+data/processed/graph/policy_b/policy_b_split_boundaries.csv
+data/processed/graph/policy_b/policy_b_protocol_summary.csv
+data/processed/graph/policy_b/policy_b_protocol_validation.csv
+data/processed/graph/policy_b/policy_b_scaling_design.json
+```
+
+Array shapes:
+
+```text
+node_features = (5,456, 41, 11)
+edge_weights = (5,456, 204)
+input_valid_mask = (5,456, 41)
+target_valid_mask_raw = (5,456, 41)
+window_sequence_input_valid_mask = (5,204, 41)
+window_target_valid_mask = (5,204, 41)
+supervised_node_mask = 39 true / 2 false
+loss_evaluation_node_mask = 39 true / 2 false
+```
+
+Window counts after applying the frozen 39-node supervised mask:
+
+```text
+train = 3,691 windows, 73,662 supervised targets
+validation = 718 windows, 4,766 supervised targets
+test = 795 windows, 14,542 supervised targets
+```
+
+The validation target count is lower than the previous 41-node Policy-B
+summary because Dhathutole's 252 validation-only targets are now
+correctly excluded from supervised loss and evaluation.
+
+Scaling:
+
+```text
+No scalers were fitted in this dataset-only stage.
+Future graph loaders must fit input and residual-target scalers using
+train windows only and the saved masks.
+Validation/test observations must not affect scaler parameters.
+```
+
+Validation checks passed:
+
+```text
+exactly 41 context nodes: true
+exactly 39 supervised forecast nodes: true
+zero-train nodes excluded from loss/metrics: true
+no split crossing: true
+every target exactly t+1: true
+every supervised target has complete 24h input history: true
+no future information used: true
+fixed node ordering preserved: true
+fixed edge ordering preserved: true
+edge endpoints are context nodes: true
+era timestamps hourly: true
+```
+
+The next graph step should implement and validate a loader for these
+frozen Policy-B artifacts before any GAT/GNN training.

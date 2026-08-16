@@ -731,3 +731,39 @@ and evaluation cohort based on train availability only. The two
 zero-train nodes should be excluded from supervised loss and forecast
 metrics, while optionally remaining as context nodes when their input
 features exist.
+
+## Frozen Policy-B Dataset Protocol
+
+The graph dataset protocol is now frozen in separate generated artifacts
+under `data/processed/graph/policy_b/`.
+
+```text
+context nodes: 41
+supervised forecast/evaluation nodes: 39
+context-only zero-train nodes:
+- Dhathutole, Handigaun
+- Phora Durbar Kathman
+
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+window length: 24 hours
+target: residual_pm25(t+1)
+context directed edges: 204
+```
+
+Graph-specific splits:
+
+```text
+train: 2025-11-26 15:00 to 2026-05-04 17:00
+validation: 2026-05-04 18:00 to 2026-06-07 19:00
+test: 2026-06-07 20:00 to 2026-07-11 22:00
+```
+
+The frozen arrays preserve node features, dynamic raw edge weights, input
+masks, raw target masks, edge masks, a 39-node supervised mask, and a
+39-node loss/evaluation mask. Scalers are not fitted at protocol-freeze
+time; future loaders must fit them on train windows only.
+
+Validation passed: 41 context nodes, 39 supervised forecast nodes,
+zero-train nodes excluded from loss/metrics, no split crossing, t+1
+targets, complete 24-hour input history for every supervised target, no
+future information, and fixed node/edge ordering.

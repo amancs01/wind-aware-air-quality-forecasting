@@ -175,6 +175,22 @@ freeze a 39-node supervised forecast/evaluation cohort by excluding the
 two zero-train nodes from supervised loss and metrics. This choice is
 based on train availability only, not validation or test performance.
 
+The Policy-B graph dataset protocol is now frozen in
+`data/processed/graph/policy_b/`:
+
+```text
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+context nodes: 41
+supervised forecast/evaluation nodes: 39
+context directed edges: 204
+train/validation/test windows: 3,691 / 718 / 795
+train/validation/test supervised targets: 73,662 / 4,766 / 14,542
+```
+
+Scaling remains a loader responsibility: fit input and residual-target
+scalers on train windows only using saved masks, then apply unchanged
+scalers to validation/test.
+
 ## Next Steps
 
 - Move toward graph construction and wind-aware station interaction,
@@ -182,12 +198,8 @@ based on train availability only, not validation or test performance.
 - Wind/spatial interaction design, using validation evidence only and
   avoiding premature feature-set changes based on the already-observed
   test split
-- Review and freeze the graph-specific Policy B timeline protocol before
-  training GAT/GAT-GRU.
-- Implement the graph dataset loader with 41 context nodes and a 39-node
-  supervised forecast/evaluation mask once the protocol is reviewed.
+- Implement and validate the graph dataset loader against the frozen
+  Policy-B artifacts before training GAT/GAT-GRU.
 - Defer Transformer work until graph design or residual sequence
   diagnostics justify it.
-- Build a graph dataset loader around the masked graph-window arrays
-  after the protocol is frozen.
 - Wind-aware GAT-GRU only after protocol review.
