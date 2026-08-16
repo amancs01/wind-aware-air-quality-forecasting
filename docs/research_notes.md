@@ -967,6 +967,80 @@ isolated nodes: 0
 The lowest-degree supervised node is Tarakeswor (SC-14)-GD Labs with
 out-degree 4 and in-degree 4, so KNN should not be changed silently.
 
+## Graph Snapshot Synchronization
+
+The first supervised graph snapshot construction stage was implemented in
+`scripts/graph/06_graph_snapshots.py`. It builds compact long-form
+artifacts from the 51 `model_usable` nodes, keeps their canonical node
+IDs, attaches only supervised dynamic edges, and uses explicit masks for
+missing inputs and targets.
+
+Node features are the same sequence-native variables used by the
+residual LSTM:
+
+```text
+pm2_5, hour_sin, hour_cos, month_sin, month_cos,
+temperature, humidity, pressure, dew_point, wind_u, wind_v
+```
+
+The supervised target is:
+
+```text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+The target is accepted only when `t+1` is exactly one hour after `t` and
+does not cross the chronological train/validation/test boundary.
+
+Policy comparison:
+
+```text
+global hourly timestamps: 47,987
+strict usable timestamps: 0
+strict node-target sequences: 0
+masked usable timestamps: 30,067
+masked train/validation/test timestamps: 17,923 / 4,969 / 7,175
+masked node-target sequences: 201,608
+```
+
+The strict all-51-node policy is not viable because the synchronized
+FEATURED_DIR data never has all 51 supervised nodes with valid inputs and
+valid t+1 targets at the same timestamp. The first GNN dataset should
+therefore use the masked fixed-graph policy.
+
+Synchronization distribution:
+
+```text
+valid input nodes per timestamp: min 0, median 1, max 43
+valid target nodes per timestamp: min 0, median 1, max 43
+valid input+target nodes per timestamp: min 0, median 1, max 42
+valid directed edges per timestamp: min 0, median 0, max 234
+active dynamic edges per timestamp: min 0, median 0, max 118
+```
+
+Coverage threshold counts:
+
+```text
+51 valid input nodes: 0 timestamps
+>=45 valid input nodes: 0 timestamps
+>=40 valid input nodes: 47 timestamps
+>=30 valid input nodes: 1,921 timestamps
+```
+
+Longest continuous usable runs:
+
+```text
+masked: 2,972 hours from 2026-01-04 18:00 to 2026-05-08 13:00
+masked >=30 inputs: 270 hours from 2026-01-12 09:00 to 2026-01-23 14:00
+masked >=40 inputs: 23 hours from 2026-05-19 12:00 to 2026-05-20 10:00
+```
+
+Validation passed: global timestamps are hourly, accepted targets are
+exactly t+1, fixed 51-node identity is preserved, no future node
+features are used, every dynamic edge is a supervised static candidate,
+edge IDs map back to the correct nodes, and raw dynamic weights remain
+unchanged and non-negative.
+
 ## Data Quality Decisions
 
 Stations without sufficient PM2.5 observations are excluded from model training after preprocessing, since they can't provide valid prediction targets (`MIN_TRAINING_ROWS` in `scripts/config.py`).

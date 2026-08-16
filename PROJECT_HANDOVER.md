@@ -2929,3 +2929,134 @@ This is not problematic enough to change KNN silently.
 **Handover status:** Dynamic wind-edge weights are implemented and
 validated as raw auditable edge weights. Next step: graph snapshot design
 and node/edge masking, not GNN training yet.
+
+## 39. Graph snapshot construction and synchronization analysis
+
+Implemented the first supervised graph snapshot synchronization stage:
+
+``` text
+scripts/graph/06_graph_snapshots.py
+```
+
+This stage does not train a GNN, row-normalize edge weights, create
+sliding windows, or impute missing node values.
+
+Supervised graph policy:
+
+-   use the 51 `model_usable` nodes from `data/metadata/station_mapping.csv`;
+-   preserve canonical node IDs from the 56-node registry;
+-   keep a fixed 51-node graph frame at every global hourly timestamp;
+-   use explicit node input/target masks instead of requiring all nodes
+    to be valid.
+
+Node features at timestamp `t`:
+
+``` text
+pm2_5
+hour_sin
+hour_cos
+month_sin
+month_cos
+temperature
+humidity
+pressure
+dew_point
+wind_u
+wind_v
+```
+
+Target:
+
+``` text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+The target is accepted only when `t+1` is exactly one hour after `t` and
+does not cross the global chronological train/validation/test split
+boundary.
+
+Generated ignored artifacts:
+
+``` text
+data/processed/graph/snapshots/supervised_nodes.csv
+data/processed/graph/snapshots/snapshot_nodes.csv.gz
+data/processed/graph/snapshots/snapshot_edges.csv.gz
+data/processed/graph/snapshots/snapshot_timestamp_summary.csv
+data/processed/graph/snapshots/snapshot_policy_summary.csv
+data/processed/graph/snapshots/snapshot_validation.csv
+data/processed/graph/snapshots/snapshot_valid_node_distribution.csv
+data/processed/graph/snapshots/snapshot_continuous_runs.csv
+```
+
+Artifact size:
+
+``` text
+node snapshot rows: 2,447,337
+edge snapshot rows: 2,659,101
+global hourly timestamps: 47,987
+supervised directed static candidates: 326
+```
+
+Policy comparison:
+
+``` text
+strict policy usable timestamps: 0
+strict node-target sequences: 0
+
+masked policy usable timestamps: 30,067
+masked train/validation/test timestamps: 17,923 / 4,969 / 7,175
+masked node-target sequences: 201,608
+```
+
+This decisively rejects the strict all-51-node policy for the first GNN
+dataset. It would provide no supervised graph training examples. The
+recommended first GNN dataset policy is the masked fixed-graph policy:
+retain all 51 canonical nodes, keep raw dynamic edge weights, and apply
+node-level input/target masks in the loss and evaluation.
+
+Synchronization distribution:
+
+``` text
+valid input nodes per timestamp: min 0, median 1, max 43
+valid target nodes per timestamp: min 0, median 1, max 43
+valid input+target nodes per timestamp: min 0, median 1, max 42
+valid directed edges per timestamp: min 0, median 0, max 234
+active dynamic edges per timestamp: min 0, median 0, max 118
+```
+
+Coverage thresholds:
+
+``` text
+timestamps with 51 valid input nodes: 0
+timestamps with >=45 valid input nodes: 0
+timestamps with >=40 valid input nodes: 47
+timestamps with >=30 valid input nodes: 1,921
+```
+
+Longest continuous usable runs:
+
+``` text
+masked: 2026-01-04 18:00 to 2026-05-08 13:00, 2,972 hours
+masked >=30 input nodes: 2026-01-12 09:00 to 2026-01-23 14:00, 270 hours
+masked >=40 input nodes: 2026-05-19 12:00 to 2026-05-20 10:00, 23 hours
+```
+
+Validation checks:
+
+``` text
+global timestamps hourly: true
+target exactly t+1: true
+fixed 51-node identity preserved: true
+no future node features used: true
+every dynamic edge is a supervised static candidate: true
+all supervised static candidates present in dynamic edges: true
+edge source IDs map to correct nodes: true
+edge target IDs map to correct nodes: true
+dynamic weights unchanged and non-negative: true
+split-boundary crossing target timestamps excluded: 3
+```
+
+**Handover status:** Graph snapshots and synchronization masks are
+implemented and validated. Next graph step should consume the masked
+snapshot artifacts to design graph model batching or sliding temporal
+windows. Do not train a GNN until that dataset loader is reviewed.

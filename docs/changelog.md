@@ -2,6 +2,51 @@
 
 Notable changes to the project, grouped by milestone. Ongoing "how/why" narrative lives in `development_log.md`.
 
+## Milestone: Graph Snapshot Synchronization
+
+### Added
+- Implemented `graph/06_graph_snapshots.py`.
+- Generated compact graph snapshot artifacts under
+  `data/processed/graph/snapshots/`.
+- Added fixed 51-node supervised graph node masks, residual t+1 targets,
+  supervised dynamic edge attachments, per-timestamp synchronization
+  summaries, policy comparison, continuous-run summaries, and validation
+  outputs.
+
+### Method
+- Used only the 51 `model_usable` nodes while preserving canonical node
+  IDs from the 56-node registry.
+- Built snapshots on a global hourly timestamp index.
+- Used sequence-native node features:
+  `pm2_5`, cyclical hour/month, weather, and `wind_u`/`wind_v`.
+- Used residual target `pm2_5(t+1) - pm2_5(t)`.
+- Accepted targets only when `t+1` was exactly one hour later and did
+  not cross the chronological split boundary.
+- Attached only supervised dynamic edges and kept `raw_dynamic_weight`
+  unchanged.
+- Did not impute missing values, row-normalize edges, build sliding
+  windows, randomly split data, or train a GNN.
+
+### Validated
+- Global hourly timestamps: 47,987.
+- Node snapshot rows: 2,447,337.
+- Edge snapshot rows: 2,659,101.
+- Strict policy usable timestamps: 0.
+- Masked policy usable timestamps: 30,067.
+- Masked train/validation/test usable timestamps: 17,923 / 4,969 /
+  7,175.
+- Masked node-target sequences: 201,608.
+- Valid input nodes per timestamp: min 0, median 1, max 43.
+- Valid target nodes per timestamp: min 0, median 1, max 43.
+- Timestamps with 51, >=45, >=40, and >=30 valid input nodes: 0, 0,
+  47, and 1,921.
+- Longest masked usable run: 2,972 hours from 2026-01-04 18:00 to
+  2026-05-08 13:00.
+- Global timestamps are hourly, targets are exactly t+1, fixed 51-node
+  identity is preserved, no future node features are used, dynamic edges
+  are supervised static candidates, and edge IDs map to the correct
+  nodes.
+
 ## Milestone: Dynamic Wind Edge Weights
 
 ### Added

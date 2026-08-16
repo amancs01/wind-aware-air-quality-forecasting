@@ -376,8 +376,101 @@ missing_source_wind
 edge_active
 ```
 
-Keep `dynamic_weight` nullable if no normalization is applied; otherwise
-store the normalized value there and keep `raw_dynamic_weight` for audit.
+The implemented dynamic edge stage keeps the raw components and
+`raw_dynamic_weight` only. Row-normalized `dynamic_weight` is deliberately
+not emitted yet; add it later only if the downstream GNN layer requires
+outgoing edge weights to sum to one.
+
+## Graph Snapshot Implementation Status
+
+`scripts/graph/06_graph_snapshots.py` now builds the first supervised
+graph snapshot synchronization artifacts from:
+
+```text
+data/metadata/station_mapping.csv
+data/processed/featured/
+data/processed/graph/dynamic_edge_weights.csv
+```
+
+The snapshot stage uses the 51 `model_usable` nodes and preserves their
+canonical node IDs from the 56-node registry. It does not renumber nodes.
+It also does not impute missing values, row-normalize edges, build
+sliding windows, or train a graph model.
+
+Node features at timestamp `t`:
+
+```text
+pm2_5
+hour_sin
+hour_cos
+month_sin
+month_cos
+temperature
+humidity
+pressure
+dew_point
+wind_u
+wind_v
+```
+
+Target:
+
+```text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+Every node row records `node_exists`, `input_valid`,
+`target_exists_t_plus_1`, `target_valid`, and
+`snapshot_supervised_usable`. The target-valid mask excludes the three
+global chronological split-boundary crossings where `t+1` would fall in a
+different split.
+
+Generated compact artifacts:
+
+```text
+data/processed/graph/snapshots/supervised_nodes.csv
+data/processed/graph/snapshots/snapshot_nodes.csv.gz
+data/processed/graph/snapshots/snapshot_edges.csv.gz
+data/processed/graph/snapshots/snapshot_timestamp_summary.csv
+data/processed/graph/snapshots/snapshot_policy_summary.csv
+data/processed/graph/snapshots/snapshot_validation.csv
+data/processed/graph/snapshots/snapshot_valid_node_distribution.csv
+data/processed/graph/snapshots/snapshot_continuous_runs.csv
+```
+
+Synchronization result:
+
+```text
+global hourly timestamps: 47,987
+node snapshot rows: 2,447,337
+edge snapshot rows: 2,659,101
+strict usable timestamps: 0
+masked usable timestamps: 30,067
+masked node-target sequences: 201,608
+```
+
+The strict policy requiring all 51 nodes to have valid inputs and valid
+t+1 targets is therefore not viable. The recommended first GNN dataset
+policy is the masked fixed-graph policy: keep all 51 node IDs in every
+snapshot and use explicit input/target masks for learning and
+evaluation.
+
+Coverage:
+
+```text
+valid input nodes per timestamp: min 0, median 1, max 43
+valid target nodes per timestamp: min 0, median 1, max 43
+timestamps with 51 valid input nodes: 0
+timestamps with >=45 valid input nodes: 0
+timestamps with >=40 valid input nodes: 47
+timestamps with >=30 valid input nodes: 1,921
+```
+
+Validation passed: global timestamps are hourly, targets are exactly
+t+1, fixed 51-node identity is preserved, no future node features are
+used, every dynamic edge is a supervised static candidate, source/target
+edge IDs map to the correct nodes, and raw dynamic weights remain
+unchanged and non-negative.
 
 ## Code Corrected Before Dynamic Edges
 
@@ -403,22 +496,30 @@ store the normalized value there and keep `raw_dynamic_weight` for audit.
 
 5. `scripts/graph/05_dynamic_edge_weights.py`
 
-   It is currently empty and is the next graph implementation target.
+   Implemented. It computes raw source-wind-controlled dynamic edge
+   weights over the corrected directed static candidates.
 
-6. `scripts/graph/06_graph_snapshots.py` and
-   `scripts/graph/07_sliding_windows.py`
+6. `scripts/graph/06_graph_snapshots.py`
 
-   They are currently empty and should remain unimplemented until dynamic
-   edge weights and the graph snapshot schema are finalized in code.
+   Implemented. It constructs fixed 51-node graph snapshots with
+   explicit node/target masks and supervised dynamic edge attachments.
+
+7. `scripts/graph/07_sliding_windows.py`
+
+   Still pending. It should remain unimplemented until the masked graph
+   snapshot dataset loader/batching design is reviewed.
 
 ## Final Recommendation
 
-Dynamic wind edges can now be implemented on the corrected static
-foundation. The station-name mapping has been replaced with a
-sensor-qualified canonical node registry, distance/bearing/static
-candidate edges have been regenerated, and the static edge CSV and
-adjacency matrix describe the same directed candidate set.
+Dynamic wind edges and graph snapshot synchronization are now
+implemented on the corrected static foundation. The station-name mapping
+has been replaced with a sensor-qualified canonical node registry,
+distance/bearing/static candidate edges have been regenerated, and the
+static edge CSV and adjacency matrix describe the same directed
+candidate set.
 
 For the first graph model, use the 51 train+validation model-usable nodes
 as the supervised node set while preserving the full 56-node canonical
-registry for reproducibility and future data expansion.
+registry for reproducibility and future data expansion. Use the masked
+fixed-graph snapshot policy, because strict all-node synchronization
+produces zero usable timestamps.

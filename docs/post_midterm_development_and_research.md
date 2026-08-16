@@ -2087,5 +2087,147 @@ The lowest-degree supervised node is `Tarakeswor (SC-14)-GD Labs`, with
 out-degree 4 and in-degree 4. This is acceptable and does not justify
 silently changing KNN.
 
-Next step: design graph snapshots and node/edge masks from the corrected
-static graph and validated dynamic edge weights.
+Next step: consume the masked graph snapshot artifacts in a reviewed
+graph dataset loader or temporal graph-window builder.
+
+---
+
+# 35. Graph snapshot construction and synchronization analysis
+
+The graph snapshot stage was implemented after the dynamic wind-edge
+weights. This stage prepares the first supervised graph-model data
+foundation but does not train a GNN, create sliding windows, impute
+missing values, or row-normalize dynamic edge weights.
+
+Implementation:
+
+```text
+scripts/graph/06_graph_snapshots.py
+```
+
+Inputs:
+
+```text
+data/metadata/station_mapping.csv
+data/processed/featured/
+data/processed/graph/static_graph.csv
+data/processed/graph/dynamic_edge_weights.csv
+```
+
+The first supervised graph uses the 51 `model_usable` nodes and keeps
+their canonical node IDs from the 56-node graph registry. Nodes are not
+renumbered.
+
+Node features at timestamp `t`:
+
+```text
+pm2_5
+hour_sin
+hour_cos
+month_sin
+month_cos
+temperature
+humidity
+pressure
+dew_point
+wind_u
+wind_v
+```
+
+Target:
+
+```text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+This matches the residual LSTM formulation that outperformed the direct
+LSTM formulation. The target is accepted only when `t+1` is exactly one
+hour after `t` and remains inside the same chronological
+train/validation/test split.
+
+Generated compact artifacts:
+
+```text
+data/processed/graph/snapshots/supervised_nodes.csv
+data/processed/graph/snapshots/snapshot_nodes.csv.gz
+data/processed/graph/snapshots/snapshot_edges.csv.gz
+data/processed/graph/snapshots/snapshot_timestamp_summary.csv
+data/processed/graph/snapshots/snapshot_policy_summary.csv
+data/processed/graph/snapshots/snapshot_validation.csv
+data/processed/graph/snapshots/snapshot_valid_node_distribution.csv
+data/processed/graph/snapshots/snapshot_continuous_runs.csv
+```
+
+The snapshot node artifact has one row per timestamp and supervised node,
+with explicit flags for row existence, complete input features, exact
+t+1 target availability, split-safe target validity, and usable
+supervised node-target pairs. The edge artifact attaches only supervised
+dynamic edges and keeps `raw_dynamic_weight` unchanged.
+
+Policy comparison:
+
+```text
+global hourly timestamps = 47,987
+node snapshot rows = 2,447,337
+edge snapshot rows = 2,659,101
+
+strict usable timestamps = 0
+strict node-target sequences = 0
+
+masked usable timestamps = 30,067
+masked train/validation/test usable timestamps = 17,923 / 4,969 / 7,175
+masked node-target sequences = 201,608
+```
+
+The strict policy is unusable because no global timestamp has all 51
+supervised nodes with valid inputs and valid one-hour-ahead targets. The
+first GNN dataset should therefore use the masked fixed-graph policy:
+retain all 51 canonical nodes at each timestamp and apply explicit
+input/target masks during training and evaluation.
+
+Synchronization distribution:
+
+```text
+valid input nodes per timestamp: min 0, median 1, max 43
+valid target nodes per timestamp: min 0, median 1, max 43
+valid input+target nodes per timestamp: min 0, median 1, max 42
+valid directed edges per timestamp: min 0, median 0, max 234
+active dynamic edges per timestamp: min 0, median 0, max 118
+```
+
+Coverage thresholds:
+
+```text
+timestamps with 51 valid input nodes = 0
+timestamps with >=45 valid input nodes = 0
+timestamps with >=40 valid input nodes = 47
+timestamps with >=30 valid input nodes = 1,921
+```
+
+Longest continuous usable runs:
+
+```text
+masked: 2026-01-04 18:00 to 2026-05-08 13:00, 2,972 hours
+masked >=30 input nodes: 2026-01-12 09:00 to 2026-01-23 14:00, 270 hours
+masked >=40 input nodes: 2026-05-19 12:00 to 2026-05-20 10:00, 23 hours
+```
+
+Validation checks passed:
+
+```text
+global timestamps hourly: true
+target exactly t+1: true
+fixed 51-node identity preserved: true
+no future node features used: true
+every dynamic edge is a supervised static candidate: true
+all supervised static candidates present in dynamic edges: true
+edge source IDs map to correct nodes: true
+edge target IDs map to correct nodes: true
+dynamic weights unchanged and non-negative: true
+split-boundary crossing target timestamps excluded: 3
+```
+
+This result is scientifically important: the graph problem is not a
+dense fully synchronized 51-station panel. It is a sparse but fixed-node
+spatiotemporal forecasting problem, so masks are part of the dataset
+definition rather than a modeling convenience.
