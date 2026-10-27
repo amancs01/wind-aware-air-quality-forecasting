@@ -1,0 +1,55 @@
+node_id,station,latitude,longitude,file_name
+0,Bagdol,27.671706,85.301619,Bagdol.csv
+1,Balaju (SC-26)- GD Labs,27.738289,85.302611,Balaju (SC-26)- GD Labs.csv
+2,Balkumari(SC-28)- GD Labs,27.671069,85.338037,Balkumari(SC-28)- GD Labs.csv
+3,Baluwatar (SC-02) - GD Labs,27.7249438,85.331062,Baluwatar (SC-02) - GD Labs.csv
+4,CEN-SR-02: Farsidol Brick Factories,27.6175,85.2961,CEN-SR-02_ Farsidol Brick Factories.csv
+5,"CEN-SR-25: Patako Chowk, Patan Durbar Square",27.673979,85.325392,"CEN-SR-25_ Patako Chowk, Patan Durbar Square.csv"
+6,Chhetrapati (SC - 19) - GD Labs,27.7119136,85.3061473,Chhetrapati (SC - 19) - GD Labs.csv
+7,Chovar (SC - 07) - GD Labs,27.6662854,85.2937189,Chovar (SC - 07) - GD Labs.csv
+8,"Dabali, Handigaun",27.68189114,85.28707804,"Dabali, Handigaun.csv"
+9,"Dhathutole, Handigaun",27.727502,85.330135,"Dhathutole, Handigaun.csv"
+10,Embassy Kathmandu,27.738703,85.336206,Embassy Kathmandu.csv
+11,Farsidol Relocated,27.609972,85.296917,Farsidol Relocated.csv
+12,Gaushala Chowk (SC-01) - GD Labs,27.707763,85.343189,Gaushala Chowk (SC-01) - GD Labs.csv
+13,Gokarneshwor (SC-13) - GD Labs,27.7206848,85.381682,Gokarneshwor (SC-13) - GD Labs.csv
+14,Golfutar (SC- 17) - GD Labs,27.74857,85.349052,Golfutar (SC- 17) - GD Labs.csv
+15,Gothatar (SC-12) - GD Labs,27.7109112,85.3803717,Gothatar (SC-12) - GD Labs.csv
+16,"Haugal Ganesh Temple, Patan Durbar Square",27.671944,85.324444,"Haugal Ganesh Temple, Patan Durbar Square.csv"
+17,Herne Katha,27.6838241,85.3101773,Herne Katha.csv
+18,Imadol(SC-27)- GD Labs,27.661062,85.347716,Imadol(SC-27)- GD Labs.csv
+19,Jadibuti (SC-35)-GD Labs,27.682109,85.354791,Jadibuti (SC-35)-GD Labs.csv
+20,Kadhaghari (SC-42)-GD Labs,27.696521,85.369882,Kadhaghari (SC-42)-GD Labs.csv
+21,Kathmandu University,27.620041043666568,85.53943575377038,Kathmandu University.csv
+22,Kaushaltar (SC - 33) GD labs,27.6724803,85.3617649,Kaushaltar (SC - 33) GD labs.csv
+23,Khokana (SC-41)-GD Labs,27.637633,85.301661,Khokana (SC-41)-GD Labs.csv
+24,Kritipur Ward 3 (SC-25) - GD Labs,27.6774083,85.2727816,Kritipur Ward 3 (SC-25) - GD Labs.csv
+25,Kupondole (SC-40)-GD Labs,27.689661,85.310442,Kupondole (SC-40)-GD Labs.csv
+26,Lagankhel (SC - 05) - GD Labs,27.666459,85.323093,Lagankhel (SC - 05) - GD Labs.csv
+27,Lamtangil (SC-04)- GD Labs,27.731368,85.336783,Lamtangil (SC-04)- GD Labs.csv
+28,Mahankal (SC-16) - GD Labs,27.7258555,85.3581047,Mahankal (SC-16) - GD Labs.csv
+29,Mid Baneshwor (SC-39)-GD Labs,27.693662,85.340501,Mid Baneshwor (SC-39)-GD Labs.csv
+30,Nakhipot (SC-08) - GD Labs,27.6510811,85.3178568,Nakhipot (SC-08) - GD Labs.csv
+31,Phora Durbar Kathman,27.712464,85.315703,Phora Durbar Kathman.csv
+32,Pulchowk (SC-15)-GD Labs,27.676946,85.318494,Pulchowk (SC-15)-GD Labs.csv
+33,Pulchowk (SC-44) - GD Labs,27.6773887,85.3184176,Pulchowk (SC-44) - GD Labs.csv
+34,Pulchowk Engineering Campus - ICE Labs,27.681232,85.319189,Pulchowk Engineering Campus - ICE Labs.csv
+35,Purano naikap (SC-29)-GD Labs,27.705718,85.255141,Purano naikap (SC-29)-GD Labs.csv
+36,Ramkot (SC - 10) - GD Labs,27.695671,85.337428,Ramkot (SC - 10) - GD Labs.csv
+37,Ranibari (SC-43)-GD Labs,27.727562,85.321155,Ranibari (SC-43)-GD Labs.csv
+38,Sanepa (SC - 22) - GD Labs,27.6854882,85.3091634,Sanepa (SC - 22) - GD Labs.csv
+39,Shantichowk (SC-11) - GD Labs,27.7239866,85.2793095,Shantichowk (SC-11) - GD Labs.csv
+40,Sifal(SC-03)- GD Labs,27.710794,85.340591,Sifal(SC-03)- GD Labs.csv
+41,Sitapaila (SC-30) - GD Labs,27.7093728,85.2808987,Sitapaila (SC-30) - GD Labs.csv
+42,Sorakhutte (SC-36)-GD Labs,27.71847,85.310271,Sorakhutte (SC-36)-GD Labs.csv
+43,Sunakothi (SC - 06) - GD Labs,27.630412,85.320402,Sunakothi (SC - 06) - GD Labs.csv
+44,Sundarighat (SC-23) - GD Labs,27.6737702,85.2948301,Sundarighat (SC-23) - GD Labs.csv
+45,Tankeshwor (SC- 18) - GD Labs,27.7003531,85.3015259,Tankeshwor (SC- 18) - GD Labs.csv
+46,Tarakeswor (SC-14)-GD Labs,27.759667,85.289631,Tarakeswor (SC-14)-GD Labs.csv
+47,Tarakeswor (SC-15)- GD Labs,27.759288,85.289453,Tarakeswor (SC-15)- GD Labs.csv
+48,Taudaha (SC - 09) - GD Labs,27.651121,85.283954,Taudaha (SC - 09) - GD Labs.csv
+49,Teku Ward 12 (SC - 20) - GD Labs ,27.6988338,85.3041625,Teku Ward 12 (SC - 20) - GD Labs.csv
+50,Tokha (SC - 32) - GD Labs,27.7376474,85.319391,Tokha (SC - 32) - GD Labs.csv
+51,Tokha (SC-31) - GD Labs,27.7560283,85.3268462,Tokha (SC-31) - GD Labs.csv
+52,Tripureshowr (SC-24)- GD Labs,27.692998,85.312458,Tripureshowr (SC-24)- GD Labs.csv
+53,Tyanglaphat (SC - 21) - GD Labs,27.6861651,85.28026,Tyanglaphat (SC - 21) - GD Labs.csv

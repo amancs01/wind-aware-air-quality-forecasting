@@ -1,10 +1,10 @@
 """
 Station Mapping Generator
 
-This script prepares the station metadata for graph construction.
+Generates graph node mapping from the trimmed station datasets.
 
 Input:
-    data/metadata/stations_metadata.csv
+    data/processed/trimmed/*.csv
 
 Outputs:
     data/metadata/station_mapping.csv
@@ -23,17 +23,15 @@ import json
 import pandas as pd
 
 from logger import logger
+
 from config import (
-    STATIONS_FILE,
+    TRIMMED_DIR,
     METADATA_DIR,
-    STATION_MAPPING_FILE
+    STATION_MAPPING_FILE,
 )
 
 
 class StationMapper:
-    """
-    Generates a clean mapping between station names and graph node IDs.
-    """
 
     REQUIRED_COLUMNS = [
         "station",
@@ -43,57 +41,75 @@ class StationMapper:
 
     def __init__(self):
 
-        self.input_file = STATIONS_FILE
+        self.input_dir = TRIMMED_DIR
 
-        self.output_csv = (
-            METADATA_DIR /
-            "station_mapping.csv"
-        )
+        self.output_csv = STATION_MAPPING_FILE
 
         self.output_json = (
             METADATA_DIR /
             "station_mapping.json"
         )
 
-    
+    # -------------------------------------------------------
     # Load Metadata
-    
+    # -------------------------------------------------------
+
     def load_metadata(self):
 
         logger.info(
-            "Loading station metadata..."
+            "Loading trimmed station files..."
         )
 
-        return pd.read_csv(
-            self.input_file
+        csv_files = sorted(
+            self.input_dir.glob("*.csv")
         )
 
-    # Validate Metadata
+        if len(csv_files) == 0:
 
-    def validate(self, df):
-
-        logger.info(
-            "Validating metadata..."
-        )
-
-        missing_columns = [
-
-            column
-
-            for column in self.REQUIRED_COLUMNS
-
-            if column not in df.columns
-        ]
-
-        if missing_columns:
-
-            raise ValueError(
-
-                f"Missing required columns: {missing_columns}"
-
+            raise FileNotFoundError(
+                f"No station CSV files found in {self.input_dir}"
             )
 
+        station_records = []
+
+        for csv_file in csv_files:
+
+            df = pd.read_csv(
+                csv_file,
+                nrows=1,
+            )
+
+            missing = [
+                col
+                for col in self.REQUIRED_COLUMNS
+                if col not in df.columns
+            ]
+
+            if missing:
+
+                raise ValueError(
+                    f"{csv_file.name} is missing columns: {missing}"
+                )
+
+            station_records.append({
+
+                "station": df.loc[0, "station"],
+
+                "latitude": df.loc[0, "latitude"],
+
+                "longitude": df.loc[0, "longitude"],
+
+                "file_name": csv_file.name,
+
+            })
+
+        return pd.DataFrame(
+            station_records
+        )
+
+    # -------------------------------------------------------
     # Clean Metadata
+    # -------------------------------------------------------
 
     def clean(self, df):
 
@@ -103,12 +119,10 @@ class StationMapper:
 
         initial_count = len(df)
 
-        # Remove duplicate stations
         df = df.drop_duplicates(
             subset="station"
         )
 
-        # Remove rows without coordinates
         df = df.dropna(
             subset=[
                 "latitude",
@@ -116,7 +130,6 @@ class StationMapper:
             ]
         )
 
-        # Sort alphabetically
         df = df.sort_values(
             by="station"
         ).reset_index(
@@ -126,12 +139,14 @@ class StationMapper:
         removed = initial_count - len(df)
 
         logger.info(
-            f"Removed {removed} invalid/duplicate stations."
+            f"Removed {removed} duplicate/invalid stations."
         )
 
         return df
 
+    # -------------------------------------------------------
     # Assign Node IDs
+    # -------------------------------------------------------
 
     def assign_node_ids(self, df):
 
@@ -147,7 +162,9 @@ class StationMapper:
 
         return df
 
+    # -------------------------------------------------------
     # Save CSV
+    # -------------------------------------------------------
 
     def save_csv(self, df):
 
@@ -160,11 +177,13 @@ class StationMapper:
             f"Saved mapping CSV -> {self.output_csv}"
         )
 
+    # -------------------------------------------------------
     # Save JSON
+    # -------------------------------------------------------
 
     def save_json(self, df):
 
-        station_mapping = dict(
+        mapping = dict(
 
             zip(
 
@@ -177,14 +196,18 @@ class StationMapper:
         )
 
         with open(
+
             self.output_json,
+
             "w",
+
             encoding="utf-8",
+
         ) as f:
 
             json.dump(
 
-                station_mapping,
+                mapping,
 
                 f,
 
@@ -198,7 +221,9 @@ class StationMapper:
             f"Saved mapping JSON -> {self.output_json}"
         )
 
+    # -------------------------------------------------------
     # Summary
+    # -------------------------------------------------------
 
     def print_summary(self, df):
 
@@ -211,20 +236,20 @@ class StationMapper:
         )
 
         logger.info(
-            f"CSV Output      : {self.output_csv}"
+            f"CSV Output : {self.output_csv}"
         )
 
         logger.info(
-            f"JSON Output     : {self.output_json}"
+            f"JSON Output : {self.output_json}"
         )
 
+    # -------------------------------------------------------
     # Run Pipeline
+    # -------------------------------------------------------
 
     def run(self):
 
         df = self.load_metadata()
-
-        self.validate(df)
 
         df = self.clean(df)
 
@@ -239,6 +264,4 @@ class StationMapper:
 
 if __name__ == "__main__":
 
-    mapper = StationMapper()
-
-    mapper.run()
+    StationMapper().run()
