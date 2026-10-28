@@ -5,6 +5,9 @@ STEPS = [
     # "00_discover_stations.py",
     # "01_download_weather.py",
     # "02_download_air_quality.py",
+
+    # These above files are automated and they neednot to be executed every time in a pipeline. If for first time then run this as well. They use the live APIs.
+    
     # "03_validate_data.py",
     # "04_profile_dataset.py",
     # "05_preprocess_data.py",
