@@ -49,11 +49,1346 @@ All forecasting models are compared using the same three regression metrics, for
 
 - Mean Absolute Error (MAE)
 - Root Mean Squared Error (RMSE)
-- Coefficient of Determination (R²)
+- Coefficient of Determination (R2)
+
+Baseline reports now distinguish macro and pooled metrics:
+
+- Macro metrics average station-level scores equally.
+- Pooled metrics are computed over all evaluated prediction rows.
+- Macro mean R2 is not a global R2 and is unstable for stations with
+  very low target variance.
+
+The fair baseline benchmark uses the same row mask for persistence and
+Ridge: all configured model features plus `target_pm2_5` must be
+present. Persistence still predicts current PM2.5; the shared frame only
+controls which rows are scored.
 
 ## Model Architecture
 
-A reusable `BaseModel` class standardizes dataset loading, evaluation, result storage, and reporting across models. Future models (Random Forest, XGBoost, LSTM, Transformer, and eventually the GAT-GRU) inherit from this base class and implement only their own training/prediction logic.
+A reusable `BaseModel` class standardizes dataset loading, construction
+of the fair evaluation frame, evaluation, result storage, and reporting
+across models. Future models should inherit from this base class and
+implement only their own training/prediction logic.
+
+Current fair benchmark interpretation:
+
+```text
+Persistence pooled R2: 0.820
+Original Ridge(alpha=10.0) pooled R2: 0.751
+Validation-selected Ridge(alpha=1000.0) pooled R2: 0.805
+Persistence macro mean R2: 0.692
+Original Ridge(alpha=10.0) macro mean R2: -127.128
+Validation-selected Ridge(alpha=1000.0) macro mean R2: -29.748
+Validation-selected Ridge(alpha=1000.0) macro median R2: 0.702
+```
+
+The Ridge macro mean is dominated by Sundarighat (SC-23) - GD Labs,
+where the test target variance is extremely small and the test PM2.5
+distribution shifts far below the training distribution. Removing that
+station from the macro mean changes Ridge macro R2 from -127.128 to
+about 0.341, so this is an R2 aggregation warning rather than evidence
+that every Ridge forecast collapsed.
+
+Persistence remains the stronger fair benchmark overall. The one-hour
+PM2.5 autocorrelation is high, so a model must add real value beyond
+current PM2.5 to beat persistence.
+
+## Validation-Based Linear Model Selection
+
+The first linear-model selection milestone used train and validation
+splits only. The test split was not used to choose alpha, scaling, or
+model family.
+
+Candidates:
+
+- `LinearRegression()`
+- unscaled `Ridge(alpha)` for `0.001`, `0.01`, `0.1`, `1.0`, `10.0`,
+  `100.0`, and `1000.0`
+- train-fitted `StandardScaler() + Ridge(alpha)` for the same alpha grid
+
+Primary selection metric: pooled validation RMSE.
+
+Validation persistence remained the strongest overall benchmark:
+
+```text
+Persistence pooled RMSE: 12.300
+Persistence pooled R2: 0.889
+```
+
+The best tested linear configuration was:
+
+```text
+Ridge(alpha=1000.0), no scaler
+```
+
+Validation result for the selected linear model:
+
+```text
+macro MAE: 8.677
+macro RMSE: 12.430
+macro mean R2: 0.664
+macro median R2: 0.775
+pooled MAE: 8.575
+pooled RMSE: 13.225
+pooled R2: 0.871
+```
+
+It beat persistence by validation RMSE on 17 stations; persistence beat
+it on 34 stations. After freezing that configuration, final test
+evaluation reported pooled RMSE 12.591 and pooled R2 0.805, still below
+test persistence at pooled RMSE 12.083 and pooled R2 0.820.
+
+## Random Forest Baseline
+
+Random Forest was added to test whether nonlinear interactions among the
+same existing PM2.5, lag, rolling, time, wind, and weather features
+improve one-hour-ahead forecasting. No features were added or removed,
+and missing lag/rolling values were not imputed.
+
+The Random Forest model remains station-specific, matching the existing
+model architecture. Each station trains its own forest, while all
+stations share one validation-selected global hyperparameter
+configuration.
+
+Tuned parameters:
+
+- `max_depth`: limits how deep each tree can grow. Smaller values make
+  each tree simpler and reduce memorization.
+- `min_samples_leaf`: requires each terminal leaf to contain at least
+  this many training rows. Larger values smooth predictions and improve
+  regularization.
+- `max_features`: controls how many features each split may consider.
+  Using all features can make individual trees stronger; using `sqrt`
+  can increase tree diversity.
+- `n_estimators`: controls the number of trees. It was fixed rather
+  than tuned aggressively because this milestone focuses on structural
+  complexity.
+
+Resource note: unbounded forests with `max_depth=None` exhausted local
+memory before producing validation metrics, even after reducing worker
+parallelism. The final feasible grid used `n_estimators=100`,
+`n_jobs=1`, `max_depth` in `[10, 20]`, `min_samples_leaf` in
+`[1, 5, 10]`, and `max_features` in `[1.0, "sqrt"]`.
+
+Selected configuration by pooled validation RMSE:
+
+```text
+n_estimators: 100
+max_depth: 10
+min_samples_leaf: 10
+max_features: 1.0
+random_state: 42
+n_jobs: 1
+```
+
+Validation result for selected Random Forest:
+
+```text
+rows: 25,689
+macro MAE: 7.675
+macro RMSE: 11.901
+macro mean R2: 0.727
+macro median R2: 0.800
+pooled MAE: 7.370
+pooled RMSE: 12.450
+pooled R2: 0.886
+```
+
+Validation comparison:
+
+```text
+Persistence pooled RMSE: 12.300
+Ridge(alpha=1000.0) pooled RMSE: 13.225
+Random Forest pooled RMSE: 12.450
+```
+
+Random Forest improved over Ridge on validation, but it did not beat
+persistence overall on pooled validation RMSE. It did beat persistence
+by station-level validation RMSE on 27 datasets, while persistence won
+on 24 datasets.
+
+Frozen final test result:
+
+```text
+rows: 26,236
+macro MAE: 6.735
+macro RMSE: 9.695
+macro mean R2: -78.855
+macro median R2: 0.704
+pooled MAE: 6.556
+pooled RMSE: 11.652
+pooled R2: 0.833
+```
+
+On held-out test rows, Random Forest improved pooled RMSE over
+persistence by 0.430, or 3.56%. However, Random Forest had worse pooled
+MAE than persistence and beat persistence by station-level test RMSE on
+only 11 of 51 datasets. This means nonlinear interactions helped reduce
+larger squared errors overall, but the improvement is not uniform across
+stations.
+
+## XGBoost Baseline
+
+XGBoost was added to test whether sequential gradient-boosted trees can
+extract more signal from the same existing features than persistence,
+Ridge, and Random Forest. The experiment kept the data, target,
+chronological splits, `MODEL_FEATURE_COLUMNS`, missing-value policy, and
+fair evaluation frame unchanged.
+
+Gradient boosting builds trees one after another. Each new tree tries to
+correct errors left by the current ensemble, so the model can learn
+nonlinear interactions in a more directed way than a bagged Random
+Forest. If boosting continues for too long, validation performance can
+stall or worsen, so XGBoost used validation-based early stopping.
+
+Main parameters:
+
+- `learning_rate`: how strongly each new tree changes predictions.
+  Smaller values learn more gradually and usually need more trees.
+- `max_depth`: maximum complexity of each tree. Deeper trees can model
+  richer interactions but may overfit.
+- `min_child_weight`: controls how easily small specialized branches are
+  created. Larger values make the model more conservative.
+- `subsample`: fraction of training rows available to each tree.
+- `colsample_bytree`: fraction of features available to each tree.
+- `early_stopping_rounds`: stops training when validation RMSE has not
+  improved recently.
+
+Environment:
+
+```text
+Python: 3.12.0
+XGBoost: 3.4.0
+```
+
+Validation grid:
+
+```text
+learning_rate: [0.03, 0.10]
+max_depth: [3, 6]
+min_child_weight: [1, 5]
+fixed: n_estimators=1000, early_stopping_rounds=50, subsample=0.8,
+colsample_bytree=0.8, reg_alpha=0.0, reg_lambda=1.0,
+objective="reg:squarederror", eval_metric="rmse", tree_method="hist",
+random_state=42, n_jobs=1
+```
+
+Selected configuration by pooled validation RMSE:
+
+```text
+learning_rate: 0.1
+max_depth: 3
+min_child_weight: 5
+subsample: 0.8
+colsample_bytree: 0.8
+reg_alpha: 0.0
+reg_lambda: 1.0
+n_estimators: 1000
+early_stopping_rounds: 50
+tree_method: hist
+random_state: 42
+n_jobs: 1
+```
+
+Validation result for selected XGBoost:
+
+```text
+rows: 25,689
+macro MAE: 7.898
+macro RMSE: 11.938
+macro mean R2: 0.729
+macro median R2: 0.787
+pooled MAE: 7.674
+pooled RMSE: 12.700
+pooled R2: 0.881
+```
+
+Best-iteration behavior across validation stations:
+
+```text
+min: 19
+median: 67
+mean: 88.78
+max: 261
+stations hitting n_estimators=1000: 0
+```
+
+Validation comparison:
+
+```text
+Persistence pooled RMSE: 12.300
+Ridge(alpha=1000.0) pooled RMSE: 13.225
+Random Forest pooled RMSE: 12.450
+XGBoost pooled RMSE: 12.700
+```
+
+XGBoost beat persistence by validation RMSE on 25 stations and Random
+Forest on 23 stations, but it did not beat either persistence or Random
+Forest by pooled validation RMSE.
+
+Frozen final test result:
+
+```text
+rows: 26,236
+macro MAE: 7.336
+macro RMSE: 10.257
+macro mean R2: -443.742
+macro median R2: 0.701
+pooled MAE: 7.184
+pooled RMSE: 12.043
+pooled R2: 0.821
+```
+
+On held-out test rows, XGBoost improved pooled RMSE over persistence by
+0.039, or 0.33%, but worsened pooled MAE by 1.179. Compared with Random
+Forest, XGBoost had higher pooled RMSE by 0.391, higher pooled MAE by
+0.628, and lower pooled R2 by 0.011. XGBoost beat persistence by
+station-level test RMSE on 11 of 51 datasets and beat Random Forest on
+18 of 51.
+
+Interpretation: sequential boosting did not provide a meaningful overall
+improvement beyond Random Forest on the current feature set. Its tiny
+pooled RMSE gain over persistence is concentrated and comes with worse
+MAE and station-level heterogeneity.
+
+## Wind-Component Semantics Correction
+
+The project now treats `wind_direction` as meteorological direction: the
+direction FROM which wind blows, measured clockwise from north. Feature
+engineering converts this to physical components:
+
+```text
+wind_u = -wind_speed * sin(wind_direction)
+wind_v = -wind_speed * cos(wind_direction)
+```
+
+`wind_u` is eastward, `wind_v` is northward, and all three wind columns
+remain in km/h because the Open-Meteo downloader uses the API default
+wind-speed unit.
+
+The previous `wind_u = speed*cos(direction)` and
+`wind_v = speed*sin(direction)` values were speed-scaled circular
+direction encodings. They preserved the available wind information, so
+the earlier classical baseline results were not meaningless, but the
+columns were physically mislabeled. Correcting the semantics is
+important for interpretation, thesis wording, and future graph edge
+construction.
+
+For future directed pollution-transport reasoning, compare station
+source-to-target bearings with:
+
+```text
+transport_direction = (wind_direction + 180) % 360
+```
+
+Do not compare raw meteorological wind direction directly to a
+source-to-target bearing unless deliberately modeling the upwind
+direction.
+
+## Validation-Only Feature Ablation
+
+This milestone used train and validation data only. The test split was
+not loaded, scored, or used for feature selection. The purpose was to
+understand predictive signal from already-established feature groups,
+not to improve or replace the production test benchmark.
+
+The ablation used the frozen Random Forest configuration:
+
+```text
+n_estimators: 100
+max_depth: 10
+min_samples_leaf: 10
+max_features: 1.0
+random_state: 42
+n_jobs: 1
+```
+
+Every ablation variant used the same full-feature-valid frames:
+
+```text
+datasets: 51
+train rows: 115,725
+validation rows: 25,689
+row/target mismatches across variants: 0
+```
+
+Feature groups:
+
+```text
+A0 Persistence: pm2_5 prediction rule only
+A1 Current PM only: pm2_5
+A2 PM history: pm2_5, lag_6, lag_24, rolling_mean_6, rolling_std_6
+A3 PM history + time: A2 plus hour_sin, hour_cos, month_sin, month_cos
+A4 Full minus wind: A3 plus temperature, humidity, pressure, dew_point
+A5 PM history + time + wind: A3 plus wind_u, wind_v
+A6 Full current feature set: MODEL_FEATURE_COLUMNS
+```
+
+Validation summary:
+
+```text
+Persistence: pooled RMSE 12.300, pooled MAE 7.292, pooled R2 0.889
+A1 current PM RF: pooled RMSE 13.453, pooled MAE 8.311, pooled R2 0.867
+A2 PM history RF: pooled RMSE 13.407, pooled MAE 8.303, pooled R2 0.868
+A3 PM history + time RF: pooled RMSE 12.499, pooled MAE 7.586, pooled R2 0.885
+A4 full minus wind RF: pooled RMSE 12.497, pooled MAE 7.402, pooled R2 0.885
+A5 history + time + wind RF: pooled RMSE 12.426, pooled MAE 7.498, pooled R2 0.886
+A6 full RF: pooled RMSE 12.449, pooled MAE 7.369, pooled R2 0.886
+```
+
+Incremental findings use the sign convention:
+
+```text
+positive RMSE improvement = lower validation RMSE after adding features
+```
+
+Key increments:
+
+```text
+PM history over current PM only: +0.046 RMSE
+Time over PM history: +0.908 RMSE
+Non-wind weather over PM history + time: +0.002 RMSE
+Wind over PM history + time: +0.073 RMSE
+Conditional wind over full-minus-wind: +0.048 RMSE
+Conditional non-wind weather over wind model: -0.023 RMSE
+```
+
+Interpretation:
+
+- Current PM2.5 alone remains very strong, and the forced persistence
+  rule beats the learned current-PM-only Random Forest on validation.
+- PM2.5 history adds only a small improvement beyond current PM2.5.
+- Cyclical time features provide the largest incremental validation
+  gain among the tested groups.
+- Non-wind weather adds little pooled RMSE value once PM history and
+  time are present, though it improves pooled MAE.
+- Wind provides a small positive pooled validation signal both without
+  other weather and after non-wind meteorology is already included.
+- The wind effect is heterogeneous: full features improved RMSE over
+  full-minus-wind on 24 stations, worsened it on 27, and had a median
+  station RMSE effect of -0.011.
+
+This supports cautious thesis wording: there is validation evidence that
+physical wind components add some predictive information beyond local
+PM2.5 history, time, and ordinary meteorology in pooled RMSE, but the
+benefit is small and not station-wide. This is not causal evidence and
+should not be used to change the production feature set without a
+deliberate future evaluation design. The existing test split has already
+been observed during prior model milestones, so any material
+feature-set decision should consider rolling-origin evaluation, a fresh
+chronological holdout, or retaining the current full feature set for
+interpretability.
+
+## Rolling-Origin Validation
+
+Rolling-origin validation was added to check whether conclusions from a
+single validation/test period are stable across multiple chronological
+forecast periods. It uses only the first 85% development portion of each
+prepared station dataset and does not load the final 15% test split.
+
+Folds:
+
+```text
+Fold 1: train 0-55%, validate 55-65%
+Fold 2: train 0-65%, validate 65-75%
+Fold 3: train 0-75%, validate 75-85%
+```
+
+Models were frozen:
+
+```text
+Persistence
+Ridge(alpha=1000)
+Random Forest: n_estimators=100, max_depth=10,
+min_samples_leaf=10, max_features=1.0, random_state=42, n_jobs=1
+```
+
+Each fold used the same full-`MODEL_FEATURE_COLUMNS`-valid rows for all
+models. Two tiny prepared datasets were skipped, leaving 51 datasets in
+each fold.
+
+Validation results:
+
+```text
+Fold 1:
+Persistence pooled RMSE 15.611, pooled MAE 10.011, pooled R2 0.829
+Ridge pooled RMSE 15.541, pooled MAE 10.540, pooled R2 0.831
+Random Forest pooled RMSE 14.538, pooled MAE 9.490, pooled R2 0.852
+
+Fold 2:
+Persistence pooled RMSE 17.689, pooled MAE 9.136, pooled R2 0.777
+Ridge pooled RMSE 16.503, pooled MAE 9.959, pooled R2 0.806
+Random Forest pooled RMSE 15.107, pooled MAE 8.568, pooled R2 0.837
+
+Fold 3:
+Persistence pooled RMSE 11.862, pooled MAE 6.951, pooled R2 0.896
+Ridge pooled RMSE 12.978, pooled MAE 8.218, pooled R2 0.876
+Random Forest pooled RMSE 12.465, pooled MAE 7.175, pooled R2 0.885
+```
+
+Model-vs-persistence pooled RMSE effects:
+
+```text
+Fold 1 RF improvement: +1.073 RMSE, 31 station wins
+Fold 2 RF improvement: +2.582 RMSE, 34 station wins
+Fold 3 RF improvement: -0.603 RMSE, 27 station wins
+
+Fold 1 Ridge improvement: +0.071 RMSE, 31 station wins
+Fold 2 Ridge improvement: +1.185 RMSE, 24 station wins
+Fold 3 Ridge improvement: -1.116 RMSE, 12 station wins
+```
+
+Random Forest station-win consistency:
+
+```text
+3/3 folds: 10 stations
+2/3 folds: 24 stations
+1/3 folds: 14 stations
+0/3 folds: 3 stations
+```
+
+The strongest 3/3 RF-win stations included Dabali, Embassy Kathmandu,
+Gokarneshwor, Sanepa, Sorakhutte, Sunakothi, Chhetrapati,
+Dhathutole, Tyanglaphat, and Imadol.
+
+Distribution-shift diagnostics showed that validation periods can differ
+substantially from their expanding training histories. Largest target
+mean shifts included Phora Durbar Kathman fold 3 (+60.5), Nakhipot fold
+1 (+57.2), Lamtangil fold 2 (-51.7), Jadibuti fold 3 (-51.0), and
+Sifal fold 1 (-48.7). These shifts help explain why model rankings are
+not stable across all chronological windows.
+
+Sundarighat remained an important diagnostic station:
+
+```text
+Fold 1 target mean shift: +12.6; RF beat Persistence
+Fold 2 target mean shift: -23.8; RF beat Persistence
+Fold 3 target mean shift: +9.2 with higher validation variance;
+        Persistence beat both RF and Ridge
+```
+
+Interpretation:
+
+- Random Forest shows useful nonlinear signal in two of three
+  development windows and wins more station comparisons than it loses in
+  all folds.
+- Persistence remains very difficult to beat, especially in fold 3,
+  where it has the best pooled RMSE and MAE.
+- Ridge is less robust than Random Forest across folds.
+- The project should report temporal robustness rather than relying on a
+  single validation or test period.
+- These results support a temporal-modeling next step, but they do not
+  justify retuning RF or changing the feature set from this analysis
+  alone.
+
+## LSTM Sequence Dataset Validation
+
+A validation-only sequence dataset analysis was added before any LSTM
+training. The important correction is that sequences must not be built
+from `data/processed/prepared/` by row position. Prepared files remove
+rows with missing current or target PM2.5, so adjacent prepared rows can
+span multi-hour or multi-day gaps.
+
+The proposed sequence source is `data/processed/featured/`, which keeps
+the hourly timeline intact after trimming:
+
+```text
+Featured stations checked: 56
+Featured invalid hourly gaps: 0
+Prepared stations with row gaps: 51
+Prepared invalid hourly gaps: 5,051
+Prepared largest gap: 11,636 hours
+```
+
+The future LSTM dataset should use 24 hourly input rows to predict PM2.5
+one hour after the final input timestamp. Each accepted sequence must
+have exactly hourly input timestamps, a target exactly at `t+1 hour`, no
+missing input/target values, and all timestamps inside one chronological
+split.
+
+Two input designs were compared scientifically:
+
+```text
+Full MODEL_FEATURE_COLUMNS:
+15 columns including lag_6, lag_24, rolling_mean_6, and rolling_std_6
+
+Recommended sequence-native design:
+pm2_5, hour_sin, hour_cos, month_sin, month_cos, temperature, humidity,
+pressure, dew_point, wind_u, wind_v
+```
+
+The recommended first LSTM baseline is the sequence-native 11-column
+design. It lets the LSTM learn 24-hour temporal structure directly,
+avoids duplicating that temporal role through handcrafted lag/rolling
+summaries, remains easier to interpret scientifically, and preserves
+more valid sequences.
+
+Accepted sequence counts:
+
+```text
+Sequence-native:
+train 101,168; validation 22,657; test 22,672; total 146,497
+
+Full MODEL_FEATURE_COLUMNS:
+train 81,702; validation 18,677; test 18,928; total 119,307
+```
+
+Proof checks over accepted windows found zero invalid input lengths, zero
+invalid hourly input gaps, zero invalid target gaps, and zero split
+membership violations for both designs.
+
+Stations with too few recommended-design sequences were:
+
+```text
+Kathmandu University__sensor_15286458
+Kathmandu University__sensor_15286975
+Kathmandu University__sensor_15286980
+Pulchowk (SC-15)-GD Labs
+Purano naikap (SC-29)-GD Labs
+Ramkot (SC - 10) - GD Labs
+Tarakeswor (SC-15)- GD Labs
+```
+
+Future dataset architecture should store a reusable sequence index with
+station, split, input-start timestamp, input-end timestamp, and target
+timestamp. Input tensors should have shape `(n_sequences, 24, 11)` for
+the recommended design, with one scalar next-hour PM2.5 target. Any
+scaler must be fit on training input rows only.
+
+## First LSTM Baseline
+
+The first station-specific LSTM baseline was implemented with PyTorch on
+the validated sequence-native dataset. It used train and validation only;
+the final test split was not evaluated.
+
+Runtime and architecture:
+
+```text
+PyTorch 2.13.0+cpu
+Device: CPU
+Input size: 11
+Window length: 24 hours
+Hidden size: 64
+Layers: 1
+Optimizer: Adam, learning_rate=0.001
+Loss: MSE
+Batch size: 64
+Max epochs: 50
+Early stopping patience: 5
+Seed: 42
+```
+
+The model was trained separately per station, matching the station-
+specific pattern used by the classical baselines. Input and target
+scalers were fit on each station's training sequences only, then applied
+unchanged to validation. Predictions were inverse-transformed before
+PM2.5 metrics were calculated.
+
+Stations:
+
+```text
+Trained: 51
+Skipped: 5
+Validation sequences in native LSTM cohort: 22,657
+Matched comparison rows: 22,477
+```
+
+Native LSTM validation metrics:
+
+```text
+Macro MAE 10.895
+Macro RMSE 15.112
+Macro median R2 0.713
+Pooled MAE 9.619
+Pooled RMSE 15.036
+Pooled R2 0.834
+```
+
+Matched validation comparison on identical target timestamps:
+
+```text
+LSTM:        pooled MAE 9.608, pooled RMSE 15.021, pooled R2 0.835
+Persistence: pooled MAE 7.142, pooled RMSE 11.848, pooled R2 0.897
+RandomForest: pooled MAE 7.286, pooled RMSE 12.233, pooled R2 0.890
+```
+
+Station RMSE wins:
+
+```text
+LSTM vs Persistence: 10 wins / 41 losses
+LSTM vs RF:           7 wins / 44 losses
+LSTM beat both:       4 stations
+```
+
+Best epoch summary:
+
+```text
+Mean best epoch: 16.3
+Median best epoch: 15
+Minimum: 1
+Maximum: 50
+Best epoch <= 5: 9 stations
+Best epoch >= 40: 2 stations
+```
+
+Interpretation: this first LSTM baseline is a valid sequence-model
+experiment, but it does not yet add useful temporal signal beyond the
+one-hour Persistence baseline or the frozen Random Forest. The result is
+consistent with the strong autocorrelation finding: a small
+station-specific LSTM can learn something, but not enough to beat the
+cheap current-PM2.5 forecast. The mixed best-epoch distribution and the
+large Balkumari train/validation gap suggest station-level instability
+and overfitting risk, especially for smaller datasets.
+
+## Persistence-Anchored Residual LSTM
+
+A residual LSTM experiment was added after the direct LSTM underperformed
+Persistence and RF. The setup kept the same station-specific LSTM
+architecture, optimizer, learning rate, batch size, maximum epochs,
+patience, seed, 24-hour featured windows, and 11 sequence-native input
+features. Only the supervised target changed:
+
+```text
+delta_pm25 = PM2.5(t+1) - PM2.5(t)
+prediction = PM2.5(t) + predicted_delta
+```
+
+Residual target scaling was fit on training residuals only.
+
+The residual target is scientifically different from absolute PM2.5
+prediction. It asks the network to learn the correction to Persistence
+rather than relearn the dominant autocorrelation structure. The target
+distribution confirms why this is easier:
+
+```text
+Train absolute PM2.5 target mean/std: 68.673 / 42.349
+Train residual target mean/std:       0.016 / 21.297
+
+Validation absolute target mean/std:  59.297 / 36.950
+Validation residual target mean/std:  0.083 / 11.840
+```
+
+Native residual LSTM validation metrics:
+
+```text
+Macro MAE 6.653
+Macro RMSE 10.069
+Macro median R2 0.836
+Pooled MAE 6.577
+Pooled RMSE 10.583
+Pooled R2 0.918
+```
+
+Matched validation comparison:
+
+```text
+Direct LSTM:   pooled RMSE 15.021, pooled MAE 9.608, pooled R2 0.835
+Residual LSTM: pooled RMSE 10.588, pooled MAE 6.580, pooled R2 0.918
+Persistence:   pooled RMSE 11.848, pooled MAE 7.142, pooled R2 0.897
+RandomForest:  pooled RMSE 12.233, pooled MAE 7.286, pooled R2 0.890
+```
+
+Station RMSE wins:
+
+```text
+Residual LSTM vs Persistence: 49 wins / 2 losses
+Residual LSTM vs RF:          41 wins / 10 losses
+Residual LSTM vs direct LSTM: 49 wins / 2 losses
+Residual LSTM beat all three: 39 stations
+```
+
+Best epoch summary:
+
+```text
+Mean 6.9, median 5, min 1, max 32
+```
+
+Interpretation: residual learning materially improves the LSTM. The
+first direct LSTM failed because it had to learn the absolute PM2.5 level
+and the persistence relationship together. The residual version anchors
+the model to the strongest simple baseline and lets it focus on one-hour
+change. This makes residual LSTM the strongest validation-only temporal
+baseline so far. Since it now clears Persistence and RF, the next
+research step should move toward wind-aware graph design rather than
+more station-specific LSTM tuning.
+
+## Graph Design Audit
+
+A graph design audit was completed before implementing dynamic wind
+edges. No dynamic edges or GNN/GAT model were implemented.
+
+Main identity finding:
+
+```text
+metadata rows: 56
+unique human station names: 54
+unique PM2.5 sensors: 56
+featured datasets: 56
+model-usable train+validation datasets: 51
+current station_mapping nodes: 54
+```
+
+The current `StationMapper` drops duplicate human station names, which
+collapses the three Kathmandu University PM2.5 sensors into one node. It
+also uses raw station names rather than the canonical featured
+`dataset_name`, so it is not one-to-one with the current modeling data.
+
+Graph node policy:
+
+```text
+Canonical registry: 56 sensor-qualified featured datasets
+First supervised graph model: 51 train+validation model-usable nodes
+Identity key: dataset_name, with pm25_sensor_id retained
+```
+
+Distance and bearing formulas were verified for the current 54-node
+artifacts, but those artifacts must be regenerated after fixing node
+identity. The current KNN adjacency is symmetrized, while the static edge
+CSV stores only 270 original directed KNN rows. The symmetrized adjacency
+contains 362 directed edges, so future dynamic edge candidates must be
+the directed expansion of the symmetric KNN union.
+
+Dynamic wind edge design:
+
+```text
+transport_direction_A(t) = (wind_direction_A(t) + 180) % 360
+alignment_AB(t) = max(0, cos(angle difference between transport direction
+                             at A and bearing A->B))
+speed_factor_A(t) = wind_speed_A(t) / (wind_speed_A(t) + 5)
+distance_factor_AB = exp(-distance_AB / lambda_d)
+raw_weight_AB(t) = candidate_AB * alignment_AB(t) *
+                   speed_factor_A(t) * distance_factor_AB
+```
+
+Use source-node wind for `A -> B`, because the edge represents pollution
+transport leaving source A toward target B. Calm wind, wind pointing away
+from B, missing weather, missing PM2.5, and non-shared timestamps should
+be handled with explicit edge/node masks and flags rather than silent
+row dropping.
+
+The full design contract is in `docs/graph_design_audit.md`.
+
+## Corrected Static Graph Foundation
+
+Graph scripts 01-04 were corrected and regenerated from the finalized
+graph design. Dynamic wind weights were not implemented yet.
+
+Corrected node registry:
+
+```text
+canonical nodes: 56
+unique dataset_name: true
+unique pm25_sensor_id: true
+model-usable train+validation nodes: 51
+missing coordinates: 0
+```
+
+The graph identity is now the canonical `dataset_name` with
+`pm25_sensor_id` retained. Human station names, `location_id`, latitude,
+and longitude are retained as metadata. This fixes the old
+station-name-based mapper that collapsed duplicate PM2.5 sensors.
+
+Regenerated geometry:
+
+```text
+distance matrix: 56x56, symmetric, zero diagonal
+undirected distance edges: 1,540
+bearing matrix: 56x56, directed
+directed bearing edges: 3,080
+```
+
+Regenerated static KNN graph:
+
+```text
+K: 5
+undirected candidate pairs after symmetric KNN union: 188
+directed static candidate edges: 376
+adjacency directed edges: 376
+static edge rows: 376
+candidate pairs missing reverse direction: 0
+```
+
+This means the static edge CSV and adjacency now describe exactly the
+same directed candidate set. Future dynamic wind weights can be computed
+on this static foundation.
+
+## Dynamic Wind Edge Weights
+
+The first dynamic wind-edge stage was implemented using the corrected
+directed static candidate graph and source-node wind from
+`data/processed/featured/`. No graph snapshots or GNN training were
+implemented.
+
+The edge weight uses source-node wind for candidate `A -> B`:
+
+```text
+transport_direction = (source_wind_direction + 180) % 360
+alignment = max(0, cos(angle difference to bearing A->B))
+speed_factor = wind_speed / (wind_speed + 5)
+distance_factor = exp(-distance_km / lambda_d)
+raw_dynamic_weight = alignment * speed_factor * distance_factor
+```
+
+The computed `lambda_d` is the median static directed candidate distance:
+
+```text
+lambda_d = 1.930 km
+```
+
+Dynamic artifact summary:
+
+```text
+timestamps: 47,988
+rows: 2,919,724
+candidate edges: 376
+supervised candidate edges: 326
+active-edge percentage: 47.522%
+zero-weight percentage: 52.478%
+missing-wind percentage: 0.000%
+calm-wind percentage: 1.867%
+```
+
+All validation checks passed: every dynamic row is a static candidate,
+there are no non-candidate edges, all static candidates are present,
+weights are non-negative, alignment and scaling factors are bounded,
+calm/missing/away wind gives zero weight, reverse candidate directions
+exist, and opposite directions can have different weights.
+
+The 51-node supervised subgraph has no isolated nodes after
+`supervised_edge=True` filtering:
+
+```text
+min out-degree: 4
+median out-degree: 6
+max out-degree: 9
+isolated nodes: 0
+```
+
+The lowest-degree supervised node is Tarakeswor (SC-14)-GD Labs with
+out-degree 4 and in-degree 4, so KNN should not be changed silently.
+
+## Graph Snapshot Synchronization
+
+The first supervised graph snapshot construction stage was implemented in
+`scripts/graph/06_graph_snapshots.py`. It builds compact long-form
+artifacts from the 51 `model_usable` nodes, keeps their canonical node
+IDs, attaches only supervised dynamic edges, and uses explicit masks for
+missing inputs and targets.
+
+Node features are the same sequence-native variables used by the
+residual LSTM:
+
+```text
+pm2_5, hour_sin, hour_cos, month_sin, month_cos,
+temperature, humidity, pressure, dew_point, wind_u, wind_v
+```
+
+The supervised target is:
+
+```text
+residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+```
+
+The target is accepted only when `t+1` is exactly one hour after `t` and
+does not cross the chronological train/validation/test boundary.
+
+Policy comparison:
+
+```text
+global hourly timestamps: 47,987
+strict usable timestamps: 0
+strict node-target sequences: 0
+masked usable timestamps: 30,067
+masked train/validation/test timestamps: 17,923 / 4,969 / 7,175
+masked node-target sequences: 201,608
+```
+
+The strict all-51-node policy is not viable because the synchronized
+FEATURED_DIR data never has all 51 supervised nodes with valid inputs and
+valid t+1 targets at the same timestamp. The first GNN dataset should
+therefore use the masked fixed-graph policy.
+
+Synchronization distribution:
+
+```text
+valid input nodes per timestamp: min 0, median 1, max 43
+valid target nodes per timestamp: min 0, median 1, max 43
+valid input+target nodes per timestamp: min 0, median 1, max 42
+valid directed edges per timestamp: min 0, median 0, max 234
+active dynamic edges per timestamp: min 0, median 0, max 118
+```
+
+Coverage threshold counts:
+
+```text
+51 valid input nodes: 0 timestamps
+>=45 valid input nodes: 0 timestamps
+>=40 valid input nodes: 47 timestamps
+>=30 valid input nodes: 1,921 timestamps
+```
+
+Longest continuous usable runs:
+
+```text
+masked: 2,972 hours from 2026-01-04 18:00 to 2026-05-08 13:00
+masked >=30 inputs: 270 hours from 2026-01-12 09:00 to 2026-01-23 14:00
+masked >=40 inputs: 23 hours from 2026-05-19 12:00 to 2026-05-20 10:00
+```
+
+Validation passed: global timestamps are hourly, accepted targets are
+exactly t+1, fixed 51-node identity is preserved, no future node
+features are used, every dynamic edge is a supervised static candidate,
+edge IDs map back to the correct nodes, and raw dynamic weights remain
+unchanged and non-negative.
+
+## Masked 24-Hour Graph Windows
+
+The masked spatio-temporal graph window index was implemented in
+`scripts/graph/07_sliding_windows.py`. It consumes snapshot artifacts
+from stage 06 and creates a compact future-GNN dataset representation
+without duplicating full overlapping 24-hour tensors.
+
+Window definition:
+
+```text
+input snapshots: t-23 ... t
+window length: 24 consecutive hours
+target: residual_pm25(t+1) attached to final timestamp t
+```
+
+A node contributes supervised loss only if its own 24-hour input history
+is complete:
+
+```text
+sequence_input_valid = input_valid at all 24 input timestamps
+supervised_target_valid = sequence_input_valid AND target_valid at final t
+```
+
+Compact artifacts:
+
+```text
+graph_window_arrays.npz
+graph_window_index.csv
+graph_window_summary.csv
+graph_window_validation.csv
+graph_window_target_distribution.csv
+graph_window_continuous_runs.csv
+graph_window_node_order.csv
+graph_window_edge_order.csv
+graph_window_rejections.csv
+```
+
+`graph_window_arrays.npz` stores node and edge snapshots once:
+
+```text
+node_features: (47,987, 51, 11)
+edge_weights: (47,987, 326)
+window_target_valid_mask: (21,457, 51)
+compressed size: about 12.0 MB
+uncompressed array footprint: about 209.1 MB
+window index size: about 2.2 MB
+```
+
+Usable windows:
+
+```text
+train: 10,561 windows, 13,238 supervised node-target examples
+validation: 4,096 windows, 6,326 supervised node-target examples
+test: 6,800 windows, 128,756 supervised node-target examples
+all: 21,457 windows, 148,320 supervised node-target examples
+```
+
+The test split is indexed for dataset completeness only. It must not be
+used for model selection or configuration decisions.
+
+Targets per usable window:
+
+```text
+train: min 1, median 1, max 3
+validation: min 1, median 1, max 3
+test: min 1, median 22, max 39
+all: min 1, median 1, max 39
+```
+
+Window threshold distribution:
+
+```text
+>=1 target: 21,457 windows
+>=10 targets: 5,354 windows
+>=20 targets: 4,335 windows
+>=30 targets: 182 windows
+>=40 targets: 0 windows
+```
+
+Rejected candidate windows:
+
+```text
+too-short 24h history: 23
+non-hourly continuity: 0
+split crossing: 49
+zero valid supervised targets: 26,458
+```
+
+Longest continuous usable runs:
+
+```text
+train: 774 windows from 2023-07-17 18:00 to 2023-08-18 23:00
+validation: 1,382 windows from 2025-07-19 09:00 to 2025-09-14 22:00
+test: 2,467 windows from 2026-01-05 17:00 to 2026-04-18 11:00
+```
+
+Validation passed: every accepted window has 24 hourly snapshots, no
+window crosses a split boundary, targets are exactly t+1 after the final
+input timestamp, the target mask implies complete 24-hour node history,
+fixed 51-node ordering is preserved, edge ordering is consistent, and no
+future node features are used.
+
+## Graph-Window Coverage Imbalance Diagnosis
+
+Before GNN training, the existing graph-window artifacts were diagnosed
+with `scripts/analysis/graph_window_coverage_diagnosis.py` and
+`scripts/24_graph_window_coverage_diagnosis.py`. This was a read-only
+analysis: it did not alter the dataset, split, graph, masks, dynamic edge
+weights, snapshots, or window artifacts.
+
+The core result is that the current global 70/15/15 chronological split
+does not provide a viable spatial graph training regime:
+
+```text
+train: 10,561 usable windows, 13,238 targets, 1.25 targets/window
+validation: 4,096 usable windows, 6,326 targets, 1.54 targets/window
+test: 6,800 usable windows, 128,756 targets, 18.93 targets/window
+```
+
+Only four supervised nodes have any train/validation 24-hour graph-window
+targets:
+
+```text
+Dabali, Handigaun
+Dhathutole, Handigaun
+Embassy Kathmandu
+Phora Durbar Kathman
+```
+
+The other 47 supervised nodes first become graph-supervisable only in the
+test-era timeline.
+
+Coverage thresholds are reached only outside train/validation:
+
+```text
+>=5 target nodes: first reached 2025-09-20 05:00, train 0, validation 0
+>=10 target nodes: first reached 2025-09-21 09:00, train 0, validation 0
+>=20 target nodes: first reached 2025-10-15 12:00, train 0, validation 0
+>=30 target nodes: first reached 2025-12-10 13:00, train 0, validation 0
+>=40 target nodes: never reached
+```
+
+Factor decomposition:
+
+```text
+train node-time slots: 1,713,090
+train node-exists slots: 82,901
+train valid input slots: 31,309
+train PM2.5 missing while node exists: 51,592
+train weather missing while node exists: 0
+
+validation node-time slots: 367,098
+validation node-exists slots: 28,792
+validation valid input slots: 9,941
+validation PM2.5 missing while node exists: 18,851
+validation weather missing while node exists: 0
+```
+
+Interpretation:
+
+1. Station deployment/start-date effects dominate. Most nodes were not
+   present during the global train/validation periods.
+2. Ordinary PM2.5 missingness removes additional node-time slots after a
+   station exists.
+3. The 24-hour sequence-completeness rule further reduces supervision,
+   by design.
+4. Split-boundary rejection is minor and is not the source of the
+   imbalance.
+
+Methodology recommendation, based only on train+validation evidence: do
+not train the first spatial GNN on the current global 70/15/15 timeline.
+Defensible alternatives include a graph-specific chronological split over
+a sufficiently deployed period, a smaller train/validation-selected graph
+cohort, or a train/validation-selected minimum-supervised-target window
+threshold. Test coverage must not be used to choose those settings.
+
+## Graph Experiment Timeline Redesign
+
+The graph timeline was redesigned with
+`scripts/analysis/graph_experiment_timeline_redesign.py` and
+`scripts/25_graph_experiment_timeline_redesign.py`. This analysis used
+station deployment and data-availability timing only. It did not train a
+model, inspect graph-model performance, overwrite station-wise splits, or
+modify the graph artifacts.
+
+The old global 2021-2026 test split has already been inspected for graph
+coverage, so it is no longer a pristine graph-model test split. No graph
+model performance has been inspected yet.
+
+Policy A, all-node common era:
+
+```text
+nodes: 51
+era: 2026-05-10 16:00 to 2026-07-11 22:00
+duration: 62.3 days
+train/validation/test timestamps: 1,046 / 224 / 225
+usable windows: train 971, validation 200, test 201
+supervised targets: train 14,855, validation 4,608, test 4,352
+mean target nodes/window: train 15.30, validation 23.04, test 21.65
+median target nodes/window: train 20, validation 23, test 22
+nodes with train targets: 45/51
+nodes with validation targets: 28/51
+PM2.5 missing after deployment: 44,003 / 76,245 node-exists slots
+```
+
+Policy A keeps every node but produces a very short graph era and poor
+validation representation across the cohort.
+
+Policy B, core-network era:
+
+```text
+nodes: 41
+selection: earliest timestamp where >=80% of nodes have begun producing
+           valid 24h sequence targets
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+duration: 227.3 days
+train/validation/test timestamps: 3,819 / 818 / 819
+usable windows: train 3,691, validation 718, test 795
+supervised targets: train 73,662, validation 5,018, test 14,542
+mean target nodes/window: train 19.96, validation 6.99, test 18.29
+median target nodes/window: train 21, validation 2, test 18
+nodes with train targets: 39/41
+nodes with validation targets: 37/41
+PM2.5 missing after deployment: 107,272 / 223,696 node-exists slots
+```
+
+Policy B is the more scientifically defensible candidate because it
+keeps a large fixed spatial network while providing a much longer
+chronological training period. Its weakness is that intermittent PM2.5
+missingness still leaves 2/41 core nodes without train targets and 4/41
+without validation targets.
+
+Recommended graph-specific protocol, pending review: use Policy B as the
+candidate graph-era protocol, store graph-specific splits separately from
+the station-wise/global splits, keep masked node-level loss/evaluation,
+and explicitly report nodes without train/validation supervision. Do not
+train GAT/GAT-GRU until this protocol is reviewed.
+
+## Policy-B Per-Node Training Support Audit
+
+Before freezing Policy B, per-node train supervision was audited using
+the existing `core_network_era` artifacts only. No graph, split, mask,
+dataset, or model was changed.
+
+Train target-count distribution across the 41 Policy-B nodes:
+
+```text
+min: 0
+Q1: 991
+median: 1,790
+Q3: 2,657
+max: 3,391
+```
+
+Bucketed support:
+
+```text
+0 train targets:
+- Dhathutole, Handigaun: validation 252
+- Phora Durbar Kathman: validation 0
+
+1-23 train targets: none
+24-99 train targets: none
+
+100-499 train targets:
+- Ramkot (SC - 10) - GD Labs: train 145, validation 54
+- CEN-SR-25_ Patako Chowk, Patan Durbar Square: train 320, validation 314
+- Balkumari(SC-28)- GD Labs: train 329, validation 58
+- Sorakhutte (SC-36)-GD Labs: train 470, validation 55
+
+>=500 train targets: 35 nodes
+```
+
+This is a train-availability decision, not a validation/test-performance
+decision. The only structural issue is the two zero-train nodes; the
+other 39 nodes have at least 145 train targets, and there is no weak
+1-99 target tail.
+
+Recommended refinement: keep all 41 Policy-B nodes as graph/context
+nodes, but freeze a 39-node supervised forecast/evaluation cohort by
+excluding the two zero-train nodes from supervised loss and metrics. The
+two excluded nodes may remain available for message-passing context when
+their inputs exist.
+
+## Frozen Policy-B Graph Dataset Protocol
+
+The final Policy-B graph dataset protocol was frozen with
+`scripts/analysis/freeze_policy_b_graph_protocol.py` and
+`scripts/26_freeze_policy_b_graph_protocol.py`. This created separate
+graph-model artifacts under `data/processed/graph/policy_b/` and did not
+modify old global graph-window artifacts or station-wise splits. No graph
+model was trained.
+
+Frozen graph protocol:
+
+```text
+context nodes: 41
+supervised forecast/evaluation nodes: 39
+context-only zero-train nodes:
+- Dhathutole, Handigaun
+- Phora Durbar Kathman
+
+era: 2025-11-26 15:00 to 2026-07-11 22:00
+target: residual_pm25(t+1) = pm2_5(t+1) - pm2_5(t)
+window length: 24 hours
+context directed edges: 204
+```
+
+Graph-specific splits:
+
+```text
+train: 2025-11-26 15:00 to 2026-05-04 17:00
+validation: 2026-05-04 18:00 to 2026-06-07 19:00
+test: 2026-06-07 20:00 to 2026-07-11 22:00
+```
+
+Frozen arrays:
+
+```text
+node_features: (5,456, 41, 11)
+edge_weights: (5,456, 204)
+window_sequence_input_valid_mask: (5,204, 41)
+window_target_valid_mask: (5,204, 41)
+supervised_node_mask: 39 true / 2 false
+loss_evaluation_node_mask: 39 true / 2 false
+```
+
+Window counts after applying the 39-node supervised mask:
+
+```text
+train: 3,691 windows, 73,662 supervised targets
+validation: 718 windows, 4,766 supervised targets
+test: 795 windows, 14,542 supervised targets
+```
+
+The validation target count is lower than the earlier Policy-B diagnosis
+because Dhathutole's 252 validation-only targets are now correctly
+excluded from supervised loss/evaluation.
+
+Scaling remains design-only at this stage. Future graph loaders must fit
+input and residual-target scalers on train windows only, using the saved
+input/target masks. Validation and test observations must not influence
+scaling parameters.
+
+Validation passed: exactly 41 context nodes, exactly 39 supervised nodes,
+zero-train nodes excluded from loss/metrics, no split crossing, targets
+exactly t+1, complete 24-hour input history for every supervised target,
+no future information, and fixed node/edge ordering.
 
 ## Data Quality Decisions
 
@@ -67,3 +1402,27 @@ Stations without sufficient PM2.5 observations are excluded from model training 
 | 2 | Shared filesystem utilities belong in `utils.py`, not duplicated per script. |
 | 3 | Network retry logic should be reusable across all API clients, not reimplemented per downloader. |
 | 4 | Networking is centralized inside a reusable HTTP client (`clients/http_client.py`) rather than living in individual scripts. |
+
+## Canonical Hourly PM2.5 Finding
+
+OpenAQ raw `/measurements` timestamps were not safe for modeling when
+downstream code floored `datetimeFrom` to the hour. Some sensors exposed
+multiple sub-hour alignments, which could create duplicate local model
+timestamps.
+
+The current modeling convention is:
+
+```text
+PM2.5(t) = OpenAQ one-hour PM2.5 interval ending at local clock time t
+```
+
+Using OpenAQ `/hours` and selecting intervals where
+`datetimeTo.local.minute == 0` removed the duplicate-timestamp problem in
+the regenerated merge. Timestamp continuity is now separate from PM2.5
+availability: the weather-left timeline is hourly and continuous after
+trimming, but many PM2.5 values are still missing because measurements
+were unavailable.
+
+New baseline metrics from this canonical hourly pipeline are the valid
+baseline going forward. They should not be directly compared with older
+metrics produced from `datetimeFrom.floor("h")` data.

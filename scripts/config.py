@@ -1,7 +1,13 @@
-from dotenv import load_dotenv
 import os
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv is not None:
+    load_dotenv()
+
 from pathlib import Path
 
 # ----------------------------
@@ -18,6 +24,8 @@ WEATHER_DIR = RAW_DIR / "weather"
 
 AIR_QUALITY_DIR = RAW_DIR / "air_quality"
 
+AIR_QUALITY_HOURLY_RAW_DIR = RAW_DIR / "air_quality_hourly"
+
 METADATA_DIR = DATA_DIR / "metadata"
 
 STATIONS_FILE = METADATA_DIR / "stations_metadata.csv"
@@ -33,6 +41,8 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 TABLES_DIR = REPORTS_DIR / "tables"
 
 PROCESSED_DIR = DATA_DIR / "processed"
+
+AIR_QUALITY_HOURLY_DIR = PROCESSED_DIR / "air_quality_hourly"
 
 MERGED_DIR = PROCESSED_DIR / "merged"
 
@@ -134,6 +144,48 @@ MODEL_FEATURE_COLUMNS = [
     "temperature", "humidity", "pressure", "dew_point",
 ]
 
+LINEAR_BASELINE_ALPHA = 1000.0
+
+RANDOM_FOREST_N_ESTIMATORS = 100
+
+RANDOM_FOREST_MAX_DEPTH = 10
+
+RANDOM_FOREST_MIN_SAMPLES_LEAF = 10
+
+RANDOM_FOREST_MAX_FEATURES = 1.0
+
+RANDOM_FOREST_RANDOM_STATE = 42
+
+RANDOM_FOREST_N_JOBS = 1
+
+XGBOOST_LEARNING_RATE = 0.1
+
+XGBOOST_MAX_DEPTH = 3
+
+XGBOOST_MIN_CHILD_WEIGHT = 5
+
+XGBOOST_SUBSAMPLE = 0.8
+
+XGBOOST_COLSAMPLE_BYTREE = 0.8
+
+XGBOOST_REG_ALPHA = 0.0
+
+XGBOOST_REG_LAMBDA = 1.0
+
+XGBOOST_N_ESTIMATORS = 1000
+
+XGBOOST_EARLY_STOPPING_ROUNDS = 50
+
+XGBOOST_OBJECTIVE = "reg:squarederror"
+
+XGBOOST_EVAL_METRIC = "rmse"
+
+XGBOOST_TREE_METHOD = "hist"
+
+XGBOOST_RANDOM_STATE = 42
+
+XGBOOST_N_JOBS = 1
+
 for directory in [
 
     # Reports
@@ -141,6 +193,7 @@ for directory in [
     RAW_DIR,
     WEATHER_DIR,
     AIR_QUALITY_DIR,
+    AIR_QUALITY_HOURLY_RAW_DIR,
     METADATA_DIR,
     REPORTS_DIR,
     VALIDATION_DIR,
@@ -150,6 +203,7 @@ for directory in [
 
     # Results
     PROCESSED_DIR,
+    AIR_QUALITY_HOURLY_DIR,
     MERGED_DIR,
     FINAL_DIR,
     TRIMMED_DIR,

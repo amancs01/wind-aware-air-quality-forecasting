@@ -37,5 +37,11 @@ Most Nepal stations on OpenAQ are provided by GD Labs, and most GD Labs stations
 
 **Implemented**
 - Per-station, per-year hourly retrieval (`scripts/01_download_weather.py`) for: `temperature_2m`, `relative_humidity_2m`, `dew_point_2m`, `surface_pressure`, `wind_speed_10m`, `wind_direction_10m`, `precipitation`.
+- `wind_direction_10m` is treated as meteorological FROM direction,
+  clockwise from north. Derived `wind_u` and `wind_v` are physical
+  eastward/northward components.
+- The downloader does not pass `wind_speed_unit`, so Open-Meteo's
+  default km/h unit is retained for `wind_speed`, `wind_u`, and
+  `wind_v`.
 - Downloads skip years already saved on disk, so re-running the script is safe.
 - The current year is downloaded up to today's date rather than a fixed year-end.
